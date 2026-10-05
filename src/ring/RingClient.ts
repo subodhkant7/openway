@@ -12,7 +12,39 @@ export interface ImageDownloadResult {
   dataUrl?: string;
   url?: string;
   format: string;
+  capturedAt?: string;
 }
+
+/**
+ * SSRF Protection: Validates that pre-signed media download URLs belong
+ * strictly to legitimate Ring or AWS S3 media infrastructure.
+ */
+export function isValidRingMediaHost(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    const host = parsed.hostname.toLowerCase();
+    const isRingOrAws =
+      host.endsWith(".ring.com") ||
+      host === "ring.com" ||
+      host.endsWith(".amazonvision.com") ||
+      host === "amazonvision.com" ||
+      host.endsWith(".amazonaws.com") ||
+      host.startsWith("s3.") ||
+      host.includes(".s3.");
+    const isLocalOrPrivate =
+      host.includes("localhost") ||
+      host === "127.0.0.1" ||
+      host.startsWith("127.") ||
+      host.startsWith("169.254.") ||
+      host.startsWith("10.") ||
+      host.startsWith("192.168.") ||
+      host.startsWith("172.16.");
+    return isRingOrAws && !isLocalOrPrivate;
+  } catch {
+    return false;
+  }
+}
+
 
 export class RingClient {
   private readonly accessToken?: string;
@@ -262,13 +294,31 @@ export class RingClient {
 
       clearTimeout(timer);
 
+      // Extract capture timestamp from authoritative response headers if provided by Ring
+      const capturedAtHeader =
+        response.headers?.get("x-ring-captured-at") ||
+        response.headers?.get("x-amz-meta-captured-at") ||
+        response.headers?.get("last-modified");
+      const authoritativeCapturedAt = capturedAtHeader ? new Date(capturedAtHeader).toISOString() : undefined;
+
       // Official Ring 303 See Other redirect with pre-signed URL in Location header
       if (response.status === 303 || response.status === 302) {
-        const locationUrl = response.headers.get("Location") || response.headers.get("location");
+        const locationUrl = response.headers?.get("Location") || response.headers?.get("location");
         if (locationUrl) {
+          // SSRF defense: Ensure redirected location is to an authorized Ring / AWS S3 media domain
+          if (!isValidRingMediaHost(locationUrl)) {
+            throw new RingProviderError({
+              code: "SECURITY_VIOLATION",
+              message: "Ring media redirect URL violates origin allowlist (potential SSRF).",
+              correlationId,
+              isRetryable: false,
+            });
+          }
+
           return {
             url: locationUrl,
             format: locationUrl.includes(".png") ? "image/png" : "image/jpeg",
+            capturedAt: authoritativeCapturedAt,
           };
         }
       }
@@ -282,12 +332,21 @@ export class RingClient {
             correlationId,
           });
         }
-        if (response.status === 404 || response.status === 410) {
+        if (response.status === 404 || response.status === 410 || response.status === 416) {
           throw new RingProviderError({
             code: "MEDIA_UNAVAILABLE",
-            message: "Image snapshot media is currently unavailable for this device.",
+            message: `Image snapshot media is currently unavailable (HTTP ${response.status} MEDIA_NOT_FOUND).`,
             statusCode: response.status,
             correlationId,
+          });
+        }
+        if (response.status === 503) {
+          throw new RingProviderError({
+            code: "SERVICE_UNAVAILABLE",
+            message: "Ring media download service is temporarily unavailable (HTTP 503).",
+            statusCode: 503,
+            correlationId,
+            isRetryable: true,
           });
         }
         throw new RingProviderError({
@@ -298,7 +357,7 @@ export class RingClient {
         });
       }
 
-      const contentType = response.headers.get("content-type") || "image/jpeg";
+      const contentType = response.headers?.get("content-type") || "image/jpeg";
 
       // If returned binary content
       if (contentType.includes("image/")) {
@@ -307,6 +366,7 @@ export class RingClient {
         return {
           dataUrl: `data:${contentType};base64,${base64}`,
           format: contentType,
+          capturedAt: authoritativeCapturedAt,
         };
       }
 
@@ -319,10 +379,26 @@ export class RingClient {
           json.data?.attributes?.url ||
           json.data?.attributes?.download_url;
 
+        const jsonCapturedAt =
+          json.captured_at ||
+          json.data?.attributes?.captured_at ||
+          json.data?.attributes?.created_at ||
+          authoritativeCapturedAt;
+
         if (downloadUrl) {
+          if (!isValidRingMediaHost(downloadUrl)) {
+            throw new RingProviderError({
+              code: "SECURITY_VIOLATION",
+              message: "Ring JSON media download URL violates origin allowlist (potential SSRF).",
+              correlationId,
+              isRetryable: false,
+            });
+          }
+
           return {
             url: downloadUrl,
             format: "image/jpeg",
+            capturedAt: jsonCapturedAt ? new Date(jsonCapturedAt).toISOString() : undefined,
           };
         }
       }

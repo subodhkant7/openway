@@ -142,30 +142,95 @@ export class RingPlaygroundProvider implements RingProvider {
   }
 
   public async getRecentEvents(deviceId?: string, limit = 10): Promise<RingEvent[]> {
+    const paginated = await this.getEventHistory({ deviceId, limit, maxPages: 1 });
+    return paginated.events;
+  }
+
+  /**
+   * Robust paginated event history retrieval following Ring API links.next.
+   * Conforms to JSON:API and Ring Partner API newest-first relative pagination.
+   */
+  public async getEventHistory(options: {
+    deviceId?: string;
+    limit?: number;
+    maxPages?: number;
+    sinceTimestamp?: string;
+    nextUrl?: string;
+  } = {}): Promise<{
+    events: RingEvent[];
+    nextUrl?: string;
+    hasMore: boolean;
+    pagesFetched: number;
+  }> {
+    const limit = options.limit ?? 10;
+    const maxPages = options.maxPages ?? 5;
+    const events: RingEvent[] = [];
+    const seenEventIds = new Set<string>();
+
+    let currentEndpoint =
+      options.nextUrl ||
+      (options.deviceId
+        ? `/v1/devices/${encodeURIComponent(options.deviceId)}/events?limit=${limit}`
+        : `/v1/events?limit=${limit}`);
+
+    let pagesFetched = 0;
+    let nextLink: string | undefined = undefined;
+
     try {
-      const endpoint = deviceId
-        ? `/v1/devices/${encodeURIComponent(deviceId)}/events?limit=${limit}`
-        : `/v1/events?limit=${limit}`;
+      while (currentEndpoint && pagesFetched < maxPages) {
+        pagesFetched++;
 
-      const response = await this.client.request<{
-        data?: Array<Record<string, unknown>>;
-        events?: Array<Record<string, unknown>>;
-      }>(endpoint);
+        const response = await this.client.request<{
+          data?: Array<Record<string, unknown>>;
+          events?: Array<Record<string, unknown>>;
+          links?: { next?: string; self?: string };
+        }>(currentEndpoint);
 
-      const rawEvents = response.data || response.events || [];
-      return rawEvents.map((raw) => this.normalizeEvent(raw));
+        const rawEvents = response.data || response.events || [];
+        for (const raw of rawEvents) {
+          const ev = this.normalizeEvent(raw);
+          if (!seenEventIds.has(ev.eventId)) {
+            seenEventIds.add(ev.eventId);
+            events.push(ev);
+          }
+        }
+
+        // Follow links.next relative pagination URL if provided
+        nextLink = response.links?.next;
+        if (nextLink && typeof nextLink === "string") {
+          currentEndpoint = nextLink;
+        } else {
+          currentEndpoint = "";
+        }
+      }
+
+      return {
+        events,
+        nextUrl: nextLink,
+        hasMore: Boolean(nextLink),
+        pagesFetched,
+      };
     } catch (err) {
-      safeLog("warn", "Event retrieval not supported or empty in current Playground scope", {
-        deviceId,
+      safeLog("warn", "Event history retrieval encountered error or empty scope", {
+        deviceId: options.deviceId,
         error: err instanceof Error ? err.message : "Unknown",
       });
-      return [];
+      return {
+        events,
+        nextUrl: undefined,
+        hasMore: false,
+        pagesFetched,
+      };
     }
   }
 
   /**
    * Conforms to official Ring Partner API Image Download specification:
    * POST /v1/devices/{device_id}/media/image/download
+   *
+   * CRITICAL INVARIANT:
+   * Never synthesizes or manufactures capture timestamps.
+   * Authoritative metadata from Ring is preserved as-is.
    */
   public async getImageEvidence(
     deviceId: string,
@@ -179,7 +244,7 @@ export class RingPlaygroundProvider implements RingProvider {
         deviceId,
         url: result.url,
         dataUrl: result.dataUrl,
-        capturedAt: new Date().toISOString(),
+        capturedAt: result.capturedAt, // Authoritative metadata from provider (NEVER synthesized!)
         format: result.format,
         source: "ring_media_download",
         isSimulated: false,

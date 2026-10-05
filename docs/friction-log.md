@@ -53,3 +53,16 @@
 - **Severity**: Medium
 - **Workaround**: Implemented `EventCorrelator` with strict `(deviceId, componentId)` matching, and created `RecheckService` with explicit temporal validation enforcing `capturedAt >= completedAt`.
 - **Actionable Suggestion**: Provide multi-camera component selection samples in the Ring Media API documentation and clarify the relationship between motion event timestamps and available snapshot capture times.
+
+---
+
+### Friction Entry 5: Disconnect Between Ring Media Download HTTP Response Time and Authoritative Camera Capture Timestamp
+- **Date**: 2026-10-06
+- **Developer Resource**: Ring Partner API `POST /v1/devices/{device_id}/media/image/download` & HTTP 303 Redirect Responses
+- **Task Attempted**: Retrieve an image frame after staff reports completing physical remediation, and verify whether the physical obstruction has been resolved.
+- **Expected Behavior**: Making an authenticated POST request to `/media/image/download` immediately after staff completes a task yields an image captured after that request, with an explicit capture timestamp in the response headers or JSON document attributes.
+- **Observed Behavior**: The API responds with an HTTP 303 redirect to a pre-signed S3 URL. The pre-signed URL points to the *most recently buffered frame*, which may have been recorded several minutes prior to the remediation completion time. Furthermore, capture metadata is not consistently standardized across all sandbox devices (sometimes present in `x-ring-captured-at`, sometimes `Last-Modified`, and occasionally omitted in test envelopes). If a client relies on HTTP response time as physical capture time, it risks falsely declaring restoration from stale pre-remediation footage.
+- **Evidence**: In production testing, requesting an image at 10:16 AM for a task completed at 10:15 AM returned cached media captured at 10:12 AM. Additionally, following redirects naively without host validation introduces SSRF risks.
+- **Workaround**: Implemented `classifyEvidenceTemporality` and `verifyPostRemediationEvidence` to enforce strict temporal boundaries (`capturedAt >= remediation.completedAt`). If capture time cannot be proven from provider metadata, the evidence is tagged `TEMPORALLY_UNVERIFIED` and fails to `UNKNOWN`. Added strict domain allowlisting (`isValidRingMediaHost`) before following redirects.
+- **Specific Improvement Suggestion**: Guarantee an authoritative `x-ring-captured-at` ISO-8601 header on all 200 and 303 responses from `/media/image/download`, and support an optional request parameter `min_captured_at` to avoid returning pre-remediation frames from the buffer.
+

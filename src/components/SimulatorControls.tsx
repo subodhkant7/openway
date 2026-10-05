@@ -66,15 +66,15 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
           </div>
           <div>
             <h2 id="simulator-controls-heading" className="text-sm font-bold text-amber-300">
-              Phase 4 Proactive Assurance Demo Workbench
+              Phase 5 Verified Assurance Demo Workbench
             </h2>
             <p className="text-[11px] text-amber-400/80">
-              Execute end-to-end preemptive assurance, remediation workflow, and fresh-evidence verification
+              Deterministic verification hardening, temporal consistency, and live demo proof
             </p>
           </div>
         </div>
         <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/40">
-          ONE-CLICK WORKBENCH
+          HARDENED VERIFICATION
         </span>
       </div>
 
@@ -92,7 +92,7 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
           >
             <AlertTriangle className="h-4 w-4 text-rose-400 flex-shrink-0" />
             <div>
-              <span className="block font-bold">1. RUN PREEMPTIVE OBSTRUCTION</span>
+              <span className="block font-bold">1. PREEMPTIVE OBSTRUCTION</span>
               <span className="text-[10px] text-rose-300/80 font-normal">
                 Ring motion &rarr; Fresh evidence &rarr; INTERRUPTED &rarr; Task OPEN
               </span>
@@ -107,7 +107,7 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
           >
             <UserCheck className="h-4 w-4 text-sky-400 flex-shrink-0" />
             <div>
-              <span className="block font-bold">2. RUN STAFF REMEDIATION</span>
+              <span className="block font-bold">2. STAFF REMEDIATION</span>
               <span className="text-[10px] text-sky-300/80 font-normal">
                 Staff reports complete &rarr; RECHECKING (never assumes success)
               </span>
@@ -118,13 +118,28 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
             type="button"
             disabled={loading}
             onClick={() => runScenario("RUN_VERIFICATION")}
-            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/50 bg-emerald-950/50 p-2.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/60 transition disabled:opacity-50 text-left shadow-sm"
+            className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/50 bg-emerald-950/50 p-2.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/60 transition disabled:opacity-50 text-left shadow-sm sm:col-span-2"
           >
             <ShieldCheck className="h-4 w-4 text-emerald-400 flex-shrink-0" />
             <div>
-              <span className="block font-bold">3. RUN VERIFICATION</span>
+              <span className="block font-bold">3. CANONICAL VERIFICATION & RESTORATION</span>
               <span className="text-[10px] text-emerald-300/80 font-normal">
-                Explicit fresh evidence &ge; completedAt &rarr; VERIFIED_RESTORED
+                Explicit fresh evidence &ge; completedAt &rarr; Deterministic Gate &rarr; VERIFIED_RESTORED
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            disabled={loading}
+            onClick={() => runScenario("RUN_UNKNOWN_VERIFICATION")}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/70 p-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition disabled:opacity-50 text-left shadow-sm"
+          >
+            <HelpCircle className="h-4 w-4 text-slate-400 flex-shrink-0" />
+            <div>
+              <span className="block font-bold">4. FAILURE DEMO 1: UNAVAILABLE &rarr; UNKNOWN</span>
+              <span className="text-[10px] text-slate-400 font-normal">
+                Ring returns no valid evidence &rarr; UNKNOWN (No green). Recover with Step 3!
               </span>
             </div>
           </button>
@@ -137,24 +152,9 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
           >
             <Clock className="h-4 w-4 text-amber-400 flex-shrink-0" />
             <div>
-              <span className="block font-bold">4. RUN STALE VERIFICATION</span>
+              <span className="block font-bold">5. FAILURE DEMO 2: STALE PRE-REMEDIATION</span>
               <span className="text-[10px] text-slate-400 font-normal">
-                Evidence captured before completion &rarr; UNKNOWN (No false green)
-              </span>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => runScenario("RUN_UNKNOWN_VERIFICATION")}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/70 p-2.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 transition disabled:opacity-50 text-left shadow-sm sm:col-span-2"
-          >
-            <HelpCircle className="h-4 w-4 text-slate-400 flex-shrink-0" />
-            <div>
-              <span className="block font-bold">5. RUN UNKNOWN VERIFICATION</span>
-              <span className="text-[10px] text-slate-400 font-normal">
-                Evidence unavailable or Ring API failure &rarr; UNKNOWN (Safely rejects restoration)
+                Evidence captured before completion &rarr; TEMPORAL_INCONSISTENCY &rarr; UNKNOWN
               </span>
             </div>
           </button>

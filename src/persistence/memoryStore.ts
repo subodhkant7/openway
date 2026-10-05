@@ -177,7 +177,11 @@ export class InMemoryStorageProvider implements StorageProvider {
     listByEntranceId: async (entranceId: string, limit = 20) =>
       Array.from(this.evidenceMap.values())
         .filter((e) => e.entranceId === entranceId)
-        .sort((a, b) => new Date(b.capturedAt).getTime() - new Date(a.capturedAt).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.capturedAt || b.receivedAt).getTime() -
+            new Date(a.capturedAt || a.receivedAt).getTime()
+        )
         .slice(0, limit),
     save: async (evidence: Evidence) => {
       this.evidenceMap.set(evidence.id, { ...evidence });

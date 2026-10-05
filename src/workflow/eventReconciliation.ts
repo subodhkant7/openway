@@ -66,10 +66,19 @@ export class EventReconciliationService {
 
     safeLog("info", "Starting event reconciliation", { sinceTimestamp, limit });
 
-    // 1. Fetch recent events from Ring provider
+    // 1. Fetch recent events from Ring provider (paginated if supported)
     let recentEvents: RingEvent[] = [];
     try {
-      recentEvents = await provider.getRecentEvents(undefined, limit);
+      if (typeof provider.getEventHistory === "function") {
+        const paginated = await provider.getEventHistory({
+          limit,
+          sinceTimestamp,
+          maxPages: 5,
+        });
+        recentEvents = paginated.events;
+      } else {
+        recentEvents = await provider.getRecentEvents(undefined, limit);
+      }
     } catch (err) {
       safeLog("warn", "Failed to retrieve Ring event history for reconciliation", {
         error: err instanceof Error ? err.message : String(err),

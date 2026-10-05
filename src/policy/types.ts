@@ -28,6 +28,7 @@ export interface GatekeeperResult {
     | "INVALID_EVIDENCE"
     | "REQUIREMENTS_NOT_MET"
     | "CONTRADICTORY_EVIDENCE"
+    | "TEMPORALLY_UNVERIFIED"
     | "INVALID_PROVENANCE";
   explanation: string;
   evaluatedFreshness?: EvidenceFreshness;

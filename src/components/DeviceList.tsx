@@ -234,7 +234,7 @@ export function DeviceList({
                 )}
               </div>
               <span className="text-slate-400">
-                Captured: {new Date(activeEvidence.capturedAt).toLocaleTimeString()}
+                Captured: {activeEvidence.capturedAt ? new Date(activeEvidence.capturedAt).toLocaleTimeString() : "Unverified"}
               </span>
             </div>
 

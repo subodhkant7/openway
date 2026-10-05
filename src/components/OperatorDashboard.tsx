@@ -213,11 +213,11 @@ export function OperatorDashboard() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
                   <span>OPENWAY</span>
                   <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    Phase 4 Proactive Assurance
+                    Phase 5 Verified Assurance
                   </span>
                 </h1>
                 <p className="text-sm font-medium text-slate-400 mt-0.5">
-                  Event-Driven Ring Assurance &bull; Staff Remediation &bull; Fresh-Evidence Verification Gate
+                  Event-Driven Ring Assurance &bull; Staff Remediation &bull; Hardened Verification &bull; No False Green
                 </p>
               </div>
             </div>

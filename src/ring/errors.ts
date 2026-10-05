@@ -11,6 +11,8 @@ export type RingErrorCode =
   | "INVALID_EVENT"
   | "SIGNATURE_INVALID"
   | "UPSTREAM_TIMEOUT"
+  | "SECURITY_VIOLATION"
+  | "SERVICE_UNAVAILABLE"
   | "UNKNOWN_PROVIDER_ERROR";
 
 export interface RingErrorDetails {

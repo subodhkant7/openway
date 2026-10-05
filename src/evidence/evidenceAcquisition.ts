@@ -1,5 +1,5 @@
 import { Entrance } from "@/domain/types";
-import { Evidence, EvidenceProvenance, EvidenceProvider } from "@/evidence/types";
+import { Evidence, EvidenceProvenance, EvidenceProvider, TemporalEvidenceClassification } from "@/evidence/types";
 import { evaluateEvidenceFreshness } from "@/evidence/freshness";
 import { getStorageProvider, StorageProvider } from "@/persistence";
 import { getRingProvider, RingProvider } from "@/ring";
@@ -24,11 +24,12 @@ export interface AcquiredEvidenceResult {
   imageBytes: Uint8Array;
   mimeType: "image/jpeg" | "image/png";
   requestedAt: string;
-  capturedAt: string;
+  capturedAt?: string;
   receivedAt: string;
   mediaOrigin: string;
   requestId: string;
   freshness: "FRESH" | "STALE" | "INVALID" | "UNKNOWN";
+  temporalClassification: TemporalEvidenceClassification;
 }
 
 // Minimal valid JPEG binary buffer for in-memory mock/simulated transport (1x1 pixel JPEG)
@@ -55,11 +56,13 @@ export class EvidenceAcquisitionService {
   /**
    * Acquires fresh camera image evidence for a target entrance.
    *
-   * CRITICAL SECURITY & PRIVACY RULES:
+   * CRITICAL SECURITY & TEMPORAL INTEGRITY RULES:
    * 1. Media bytes remain strictly in server memory (Uint8Array/Buffer).
    * 2. No temporary images are written to public directories.
    * 3. No pre-signed S3 URLs are exposed to browsers.
-   * 4. Freshness is strictly evaluated using camera capture time (capturedAt).
+   * 4. Capture time is authoritative from Ring metadata; never synthesized in production.
+   * 5. Never substitute receipt time or request time for capture time.
+   * 6. If capturedAt cannot be established: TEMPORALLY_UNVERIFIED -> UNKNOWN.
    */
   public async acquireFreshEvidence(
     options: EvidenceAcquisitionOptions
@@ -71,6 +74,10 @@ export class EvidenceAcquisitionService {
 
     const deviceId = entrance.cameraBinding.deviceId;
     const componentId = entrance.cameraBinding.componentId;
+
+    // Track telemetry
+    const { telemetry } = await import("@/telemetry/metrics");
+    telemetry.increment("ringEvidenceCalls");
 
     // 1. Fetch media observation from Ring Provider
     let ringMedia = null;
@@ -85,18 +92,6 @@ export class EvidenceAcquisitionService {
 
     const receivedAt = new Date().toISOString();
 
-    // Determine capture time: prefer override, then Ring metadata, then eventTimestamp, then now
-    let capturedAt = options.overrideCapturedAt;
-    if (!capturedAt && ringMedia?.capturedAt) {
-      capturedAt = ringMedia.capturedAt;
-    }
-    if (!capturedAt && options.eventTimestamp) {
-      capturedAt = options.eventTimestamp;
-    }
-    if (!capturedAt) {
-      capturedAt = receivedAt;
-    }
-
     // Determine provenance
     const isSimulated =
       options.isSimulated !== undefined
@@ -105,6 +100,29 @@ export class EvidenceAcquisitionService {
 
     const provenance: EvidenceProvenance = isSimulated ? "SIMULATED_LOCAL" : "OFFICIAL_RING";
     const evidenceProvider: EvidenceProvider = isSimulated ? "SIMULATOR" : "RING";
+
+    // Determine capture time:
+    // SIMULATOR -> deterministic synthetic evidence
+    // RING -> provider-returned evidence metadata (NEVER synthesized in production)
+    let capturedAt: string | undefined = options.overrideCapturedAt;
+    if (!capturedAt && ringMedia?.capturedAt) {
+      capturedAt = ringMedia.capturedAt;
+    }
+    if (!capturedAt && isSimulated) {
+      if (options.eventTimestamp) {
+        capturedAt = options.eventTimestamp;
+      } else {
+        capturedAt = receivedAt;
+      }
+    }
+    // In production Ring mode, if provider returned no capture timestamp, capturedAt remains undefined!
+
+    // Determine temporal classification
+    const { classifyEvidenceTemporality } = await import("./temporalClassification");
+    const temporalClassification: TemporalEvidenceClassification = classifyEvidenceTemporality(
+      { capturedAt, receivedAt },
+      { now: receivedAt }
+    );
 
     // 2. Prepare in-memory byte buffer
     let imageBytes: Uint8Array = options.overrideBytes || FALLBACK_JPEG_BYTES;
@@ -145,12 +163,17 @@ export class EvidenceAcquisitionService {
       provenance,
       isSimulated,
       freshness: "UNKNOWN",
+      temporalClassification,
       checksum,
       createdAt: receivedAt,
     };
 
     // 4. Deterministic Freshness Evaluation (based on camera capturedAt)
-    const evaluatedFreshness = evaluateEvidenceFreshness(preliminaryEvidence, undefined, receivedAt);
+    let evaluatedFreshness: "FRESH" | "STALE" | "INVALID" | "UNKNOWN" = "UNKNOWN";
+    if (capturedAt) {
+      evaluatedFreshness = evaluateEvidenceFreshness(preliminaryEvidence, undefined, receivedAt);
+    }
+
     const finalizedEvidence: Evidence = {
       ...preliminaryEvidence,
       freshness: evaluatedFreshness,
@@ -169,6 +192,8 @@ export class EvidenceAcquisitionService {
       mediaOrigin: ringMedia?.source || (isSimulated ? "simulator" : "ring_partner_api"),
       requestId,
       freshness: evaluatedFreshness,
+      temporalClassification,
     };
   }
 }
+

@@ -95,10 +95,10 @@ export class RecheckService {
     const latestAssessment = await this.storage.assessments.findLatestByEntranceId(entrance.id);
     let currentState: AssuranceState = latestAssessment?.state || "ACTION_REQUIRED";
 
-    if (currentState === "ACTION_REQUIRED") {
+    if (currentState === "ACTION_REQUIRED" || currentState === "UNKNOWN") {
       const transToRecheck = transitionAssuranceState({
         entranceId: entrance.id,
-        currentState: "ACTION_REQUIRED",
+        currentState,
         nextState: "RECHECKING",
         trigger: "STAFF_COMPLETED_TASK",
         correlationId,
@@ -146,6 +146,9 @@ export class RecheckService {
     while (attempt < maxAttempts) {
       attempt++;
 
+      const { telemetry } = await import("@/telemetry/metrics");
+      telemetry.increment("recheckAttempts");
+
       if (initialDelayMs > 0 && attempt > 1) {
         const delay = initialDelayMs * Math.pow(options.backoffFactor ?? 1.5, attempt - 2);
         await new Promise((resolve) => setTimeout(resolve, delay));
@@ -165,11 +168,27 @@ export class RecheckService {
 
       lastEvidence = acquired.evidence;
 
+      // Invariant: Capture timestamp must be established from metadata
+      if (!acquired.capturedAt || typeof acquired.capturedAt !== "string" || acquired.capturedAt.trim() === "") {
+        safeLog("warn", "Recheck evidence missing authoritative capture timestamp", {
+          entranceId: entrance.id,
+          attempt,
+        });
+
+        lastGatekeeperResult = {
+          allowed: false,
+          reasonCode: "TEMPORALLY_UNVERIFIED",
+          explanation: "Evidence capture timestamp is missing or unverified from camera metadata.",
+        };
+
+        continue;
+      }
+
       // Enforce temporal rule: capturedAt MUST be >= completedAt
       const evidenceCaptureTime = new Date(acquired.capturedAt).getTime();
       const remediationCompleteTime = new Date(completedAt).getTime();
 
-      if (evidenceCaptureTime < remediationCompleteTime) {
+      if (isNaN(evidenceCaptureTime) || evidenceCaptureTime < remediationCompleteTime) {
         // Evidence captured before completion cannot verify restoration!
         safeLog("warn", "Recheck evidence predates remediation completion", {
           capturedAt: acquired.capturedAt,
@@ -200,7 +219,7 @@ export class RecheckService {
 
       lastObservation = pipelineResult.observation;
 
-      // Evaluate pure RestorationGatekeeper
+      // Evaluate pure RestorationGatekeeper & Post-Remediation Verifier
       const gatekeeper = canDeclareRestored({
         currentState: "RECHECKING",
         entrance,
@@ -254,6 +273,9 @@ export class RecheckService {
               explanation: gatekeeper.explanation,
             },
           });
+
+          const { telemetry } = await import("@/telemetry/metrics");
+          telemetry.increment("verifiedRestorations");
 
           return {
             success: true,
@@ -337,6 +359,9 @@ export class RecheckService {
       assessedAt: new Date().toISOString(),
       previousAssessmentId: latestAssessment?.id,
     });
+
+    const { telemetry } = await import("@/telemetry/metrics");
+    telemetry.increment("unknownOutcomes");
 
     return {
       success: false,

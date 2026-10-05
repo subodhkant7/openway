@@ -1,7 +1,10 @@
 import { evaluateEvidenceFreshness } from "@/evidence/freshness";
 import { RestorationGateParams, GatekeeperResult } from "./types";
+import { verifyPostRemediationEvidence, PostRemediationVerificationParams, PostRemediationVerificationResult } from "./postRemediationVerifier";
 
 export type RestorationGatekeeperResult = GatekeeperResult;
+export { verifyPostRemediationEvidence };
+export type { PostRemediationVerificationParams, PostRemediationVerificationResult };
 
 /**
  * Pure Deterministic Restoration Gatekeeper
@@ -59,6 +62,14 @@ export function canDeclareRestored(params: RestorationGateParams): GatekeeperRes
   }
 
   // 3. Remediation must have occurred BEFORE the verification evidence was captured
+  if (!evidence.capturedAt) {
+    return {
+      allowed: false,
+      reasonCode: "TEMPORALLY_UNVERIFIED",
+      explanation: "Verification evidence lacks an authoritative capture timestamp from Ring.",
+    };
+  }
+
   const remediationTime = new Date(remediationTask.completedAt).getTime();
   const evidenceCapturedTime = new Date(evidence.capturedAt).getTime();
 

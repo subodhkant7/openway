@@ -93,8 +93,12 @@ export class VisionPipelineService {
     let visionInferenceMs = 0;
 
     if (this.cache.has(processingKey)) {
+      const { telemetry } = await import("@/telemetry/metrics");
+      telemetry.increment("dedupeHits");
       observation = this.cache.get(processingKey)!;
     } else {
+      const { telemetry } = await import("@/telemetry/metrics");
+      telemetry.increment("bedrockCalls");
       const inferenceStart = Date.now();
       observation = await analyzer.analyzeImage({
         evidence,

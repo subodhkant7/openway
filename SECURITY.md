@@ -71,12 +71,31 @@ OpenWay recognizes that Zod `.strict()` schema enforcement prevents *syntactic* 
 
 ## 8. SSRF Prevention & Untrusted Media URL Protection
 
-- **No Arbitrary Media URLs**: OpenWay never permits API users or external callers to submit arbitrary media URLs for downloading.
-- **Strict Ring Domain Whitelisting**: Media downloads are permitted only through official Ring API hostnames (`https://api.amazonvision.com` and authorized Amazon S3 media storage domains).
-- **Asynchronous Execution Boundary**: Webhooks acknowledge immediately without executing heavy network or AI calls in the HTTP request lifecycle, preventing Denial of Service through event storms.
+The Ring Partner API `POST /v1/devices/{device_id}/media/image/download` endpoint uses an HTTP 303 See Other redirect that points to a pre-signed media URL hosted in Amazon S3. OpenWay implements rigorous defenses against Server-Side Request Forgery (SSRF) and untrusted redirects:
+- **No Client-Supplied URLs**: OpenWay never accepts media download URLs from external API callers or clients. All media downloads originate from internally bound `deviceId` and `componentId` configurations.
+- **Strict Redirect Destination Whitelisting (`isValidRingMediaHost`)**: When following an HTTP 303 redirect, `RingClient` parses the target `Location` header with standard URL parsing and verifies that the destination hostname strictly belongs to authorized Ring or Amazon AWS domains:
+  - `*.ring.com` (and exact `ring.com`)
+  - `*.amazonvision.com` (and exact `amazonvision.com`)
+  - `*.amazonaws.com` (and exact `amazonaws.com`)
+- **Block Private Network & Cloud Metadata Targets**: Any redirect attempting to reach:
+  - Loopback addresses (`127.0.0.1`, `localhost`, `::1`)
+  - AWS Instance Metadata Service (`169.254.169.254`)
+  - RFC 1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
+  is immediately aborted, throwing a typed `SecurityError` and logging a sanitized alert.
+- **Oversized Media & Memory Exhaustion Caps**: Media response payloads are capped at a maximum of 10 MB (`10 * 1024 * 1024` bytes). Downloads exceeding this threshold are aborted before buffering into memory to prevent Denial of Service via memory exhaustion.
+- **Zero Browser Exposure of Signed URLs**: Pre-signed S3 download URLs are consumed strictly within server memory and are never serialized or forwarded to browser clients.
 
 ---
 
-## 7. Vulnerability Reporting
+## 9. Temporal Anti-Replay & Evidence Reuse Defense
+
+Replaying previous clear camera snapshots or reusing an image captured before a physical obstruction was cleared represents a critical threat to physical accessibility assurance:
+- **Strict Capture Timestamp Provenance**: OpenWay extracts authoritative capture timestamps from `x-ring-captured-at`, `Last-Modified`, or JSON attributes. If Ring does not return an authentic capture timestamp, the evidence is classified as `TEMPORALLY_UNVERIFIED` and immediately rejected.
+- **Enforced Post-Remediation Boundary**: The pure deterministic verifier (`verifyPostRemediationEvidence`) requires `capturedAt >= remediation.completedAt`. A successful HTTP 200/303 download response timestamp is never substituted for the camera's actual capture time.
+- **Event Reconciliation Safety**: Idempotent replay of historical Ring events during network recovery cannot bypass the post-remediation verification gate.
+
+---
+
+## 10. Vulnerability Reporting
 
 If you discover a security vulnerability within OpenWay, please contact the maintainers directly via repository issue or security advisory.

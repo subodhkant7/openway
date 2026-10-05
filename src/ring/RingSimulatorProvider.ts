@@ -146,7 +146,7 @@ export class RingSimulatorProvider implements RingProvider {
    */
   public async getImageEvidence(deviceId: string): Promise<RingImageEvidence | null> {
     const dev = this.state.devices.find((d) => d.id === deviceId);
-    if (!dev) return null;
+    const cameraName = dev ? dev.name : `Simulated Camera (${deviceId})`;
 
     const capturedAt = new Date().toISOString();
     const svg = `
@@ -170,7 +170,7 @@ export class RingSimulatorProvider implements RingProvider {
         <rect x="20" y="20" width="240" height="28" rx="6" fill="rgba(15, 23, 42, 0.9)" stroke="#f59e0b" stroke-width="1"/>
         <circle cx="32" cy="34" r="5" fill="#f59e0b"/>
         <text x="46" y="38" fill="#fef3c7" font-size="11" font-weight="700">SIMULATED - LOCAL TEST EVIDENCE</text>
-        <text x="20" y="340" fill="#94a3b8" font-size="11">CAMERA: ${dev.name} [MOCK]</text>
+        <text x="20" y="340" fill="#94a3b8" font-size="11">CAMERA: ${cameraName} [MOCK]</text>
         <text x="620" y="340" fill="#94a3b8" font-size="11" text-anchor="end">${capturedAt.replace("T", " ").slice(0, 19)} UTC</text>
       </svg>
     `.trim();

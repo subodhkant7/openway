@@ -2,7 +2,7 @@
 
 **Project**: OpenWay  
 **Track**: Ring  
-**Phase**: Phase 2 — Accessibility Assurance Domain, Evidence Model, Deterministic State Machine & Persistence  
+**Phase**: Phase 5 — Ring Evidence Semantics, Post-Remediation Verification Hardening, Live Playground Proof & Demo Reliability  
 
 ---
 
@@ -59,21 +59,24 @@ OpenWay is built on an unwavering privacy principle:
 
 ---
 
-## 4. Phase 4 Deliverables & AWS Builder Alignment
+## 4. Phase 5 Deliverables: Evidence Semantics, Verification Hardening & Demo Reliability
 
-### Proactive Event-Driven Assurance & Remediation Workflow
-OpenWay turns domain, Ring, and Bedrock into an end-to-end closed-loop proactive accessibility assurance system:
-* **Preemptive Initial Detection**: Ring motion or ding events trigger assurance checks before an accessibility-dependent visitor encounters an obstruction. OpenWay does **NOT** conduct continuous surveillance.
-* **Deterministic Event Correlation**: Maps Ring devices and camera components to configured entrances. Unmapped hardware is safely rejected (`UNBOUND_DEVICE`).
-* **Fresh Evidence Acquisition**: Evaluates media using capture time (`capturedAt`), preserving camera provenance and handling in-memory JPEG buffers.
-* **Subordinate Multimodal Vision**: Amazon Bedrock interprets Ring image evidence using strict JSON tool schemas (`record_accessibility_observation`).
-* **Automated Remediation Workflow**: Physical interruptions automatically dispatch actionable remediation tasks detailing specific physical actions.
-* **Staff Action Boundary**: Staff reporting `COMPLETE` marks physical action done, but **never** restores access. The system transitions to `RECHECKING` and initiates verification.
-* **Post-Remediation Verification Gate**: `RecheckService` explicitly requests new camera evidence and evaluates the pure deterministic `RestorationGatekeeper` against all 9 verification conditions (`capturedAt >= completedAt`, matching camera, fresh, non-contradictory).
-* **Event History Reconciliation**: `EventReconciliationService` discovers and idempotently recovers missed Ring events after transient network outages.
+### System Breakdown for Hackathon Judges
 
-### Engineering Metrics
-- **159 Automated Tests across 19 Suites**: High branch coverage across Bedrock vision adapter, prompts, JSON tool schema, adversarial suites (prompt injection, darkness, glare, crop, angle mismatch), state machine transitions, pure restoration gatekeeper, event correlation, proactive assurance, and domain API routes.
-- **Strict TypeScript**: 100% typechecked with strict null checks (`tsc --noEmit` exits with 0).
-- **ESLint & Web Vitals**: Zero lint errors or warnings (`next lint` exits with 0).
-- **Production Build**: Next.js App Router optimized static and dynamic bundle compilation (`next build` exits with 0).
+| System Component | Technology / Mechanism | What It Actually Does in OpenWay |
+| :--- | :--- | :--- |
+| **Ring Integration** | Official Partner API v1.1 Webhooks, JSON:API `/v1/devices`, `POST /v1/devices/{id}/media/image/download`, `links.next` pagination | Server-to-server event ingestion, correlation to entrance bindings, media download with 303 redirect interception, authoritative capture time extraction (`x-ring-captured-at`, `Last-Modified`), and SSRF origin protection. |
+| **Amazon Bedrock** | Claude 3.5 Sonnet (`anthropic.claude-3-5-sonnet-20241022-v2:0`) via AWS SDK Converse API | Multimodal structured observation producer. Subordinate interpreter: outputs tri-state observations (`TRUE`, `FALSE`, `UNKNOWN`) via strict tool use (`record_accessibility_observation`). Never controls state machine or issues status verdicts. |
+| **Deterministic Policy** | Pure TypeScript (`canDeclareRestored`, `verifyPostRemediationEvidence`, `AssuranceStateMachine`) | Authoritative gatekeeper. Enforces the 10 post-remediation verification invariants, strict capture-time boundaries (`capturedAt >= completedAt`), component binding safety, and contradiction detection. Defends against false green. |
+| **Deterministic Simulation** | In-memory `RingSimulatorProvider` & `SimulatorVisionAnalyzer` | Deterministic local demo environment. Generates honest `SIMULATED_LOCAL` provenance test evidence, enabling full end-to-end evaluation without requiring physical hardware credentials. |
+
+---
+
+## 5. Engineering Metrics (Phase 5 Checkpoint)
+
+- **182 Automated Tests across 22 Suites**: 100% green test suite covering temporal semantics, live Ring contracts, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation.
+- **Strict TypeScript**: 100% typechecked with strict null checks (`npm run typecheck` exits with 0).
+- **ESLint & Web Vitals**: Zero lint errors or warnings (`npm run lint` exits with 0).
+- **Production Build**: Next.js App Router optimized static and dynamic bundle compilation (`npm run build` exits with 0).
+- **Zero Secret Leakage**: Verified via automated secret scanner; 0 tokens, AWS keys, or pre-signed URLs exposed to client bundles.
+

@@ -6,6 +6,21 @@ import {
   RingImageEvidence,
 } from "./types";
 
+export interface EventHistoryOptions {
+  deviceId?: string;
+  limit?: number;
+  maxPages?: number;
+  sinceTimestamp?: string;
+  nextUrl?: string;
+}
+
+export interface PaginatedEventsResult {
+  events: RingEvent[];
+  nextUrl?: string;
+  hasMore: boolean;
+  pagesFetched: number;
+}
+
 /**
  * RingProvider Interface
  * Formal contract for all Ring integrations (Playground, Partner API, and Simulator).
@@ -39,6 +54,11 @@ export interface RingProvider {
   getRecentEvents(deviceId?: string, limit?: number): Promise<RingEvent[]>;
 
   /**
+   * Robust paginated event history retrieval following Ring API links.next.
+   */
+  getEventHistory?(options?: EventHistoryOptions): Promise<PaginatedEventsResult>;
+
+  /**
    * Fetches an image observation from the camera using the official Ring Partner API endpoint:
    * POST /v1/devices/{device_id}/media/image/download
    * 
@@ -54,3 +74,4 @@ export interface RingProvider {
    */
   normalizeEvent(rawPayload: Record<string, unknown>): RingEvent;
 }
+

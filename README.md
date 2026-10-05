@@ -82,7 +82,7 @@ All Ring credentials remain strictly server-side and are **never exposed to clie
 # 1. Install dependencies
 npm install
 
-# 2. Run full test suite (159 tests across 19 suites)
+# 2. Run full test suite (182 tests across 22 suites)
 npm run test
 
 # 3. Verify TypeScript type safety
@@ -105,19 +105,19 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## 6. How to Verify the Ring Connection & Assurance States
 
 1. **Simulator Mode (Default)**:
-   - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Runtime: SIMULATOR` with clear badges.
-   - All simulated evidence is honestly stamped: `SIMULATED - LOCAL TEST EVIDENCE`.
-   - Use the **Phase 4 Proactive Assurance Demo Workbench** in the operator dashboard to execute one-click scenarios:
-     - `RUN PREEMPTIVE OBSTRUCTION` (Ring motion &rarr; Fresh evidence &rarr; INTERRUPTED &rarr; Task OPEN)
-     - `RUN STAFF REMEDIATION` (Staff reports complete &rarr; RECHECKING; verification actively requested)
-     - `RUN VERIFICATION` (Explicit fresh evidence captured after completion &rarr; VERIFIED_RESTORED)
-     - `RUN STALE VERIFICATION` (Evidence captured before task completion rejected &rarr; UNKNOWN)
-     - `RUN UNKNOWN VERIFICATION` (Evidence unavailable &rarr; UNKNOWN; no false green)
+   - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Runtime: SIMULATOR` with clear badges: `SIMULATED RING` or `SIMULATED RING + AMAZON BEDROCK`.
+   - All simulated evidence is honestly stamped: `SIMULATED_LOCAL`.
+   - Use the **Phase 5 Verification & Demo Workbench** in the operator dashboard to execute one-click scenarios:
+     - `1. RUN PREEMPTIVE OBSTRUCTION` (Ring motion → Fresh evidence → INTERRUPTED → Task OPEN)
+     - `2. RUN STAFF REMEDIATION` (Staff reports complete → RECHECKING; verification actively requested)
+     - `3. RUN VERIFICATION` (Explicit fresh evidence captured after completion → VERIFIED_RESTORED)
+     - `FAILURE DEMO 1: UNAVAILABLE` (Ring 404/416/timeout → UNKNOWN → Recover with Step 3)
+     - `FAILURE DEMO 2: STALE EVIDENCE` (Evidence captured before completion → TEMPORAL_INCONSISTENCY → UNKNOWN)
      - Invariant defense tests (Scenarios C, F, G, H).
 2. **Playground Mode**:
    - Set `OPENWAY_PROVIDER=playground` with a valid token in `.env.local` (or click "Playground" in the dashboard's mode selector).
    - Click **"Verify"** in the Ring Connection card.
-   - Upon successful verification, the dashboard displays `CONNECTED (REAL RING)` with live online device counts and capabilities discovered directly from `https://api.amazonvision.com/v1/devices`.
+   - Upon successful verification, the dashboard displays `CONNECTED (OFFICIAL RING)` with live online device counts and capabilities discovered directly from `https://api.amazonvision.com/v1/devices`.
 3. **Webhook Verification**:
    - Webhook endpoint is hosted at `POST /api/ring/webhook`.
    - Incoming payloads require an HMAC-SHA256 signature matching `RING_WEBHOOK_SECRET` in the `X-Signature` header.
@@ -136,28 +136,52 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | **Device Discovery** | Real devices retrieved via JSON:API `GET /v1/devices?include=status,capabilities` | Deterministic mock accessibility cameras |
 | **Device Status** | Real-time status via `GET /v1/devices/{id}/status` or compound document | Interactive online/offline toggle |
 | **Capabilities** | Live capabilities via `GET /v1/devices/{id}/capabilities` or compound document | Full 4-capability simulation |
-| **Image Evidence** | `POST /v1/devices/{id}/media/image/download` | Synthetic accessible ramp perspective JPEG buffer |
+| **Image Evidence** | `POST /v1/devices/{id}/media/image/download` with SSRF redirect validation | Synthetic accessible ramp perspective JPEG buffer |
+| **Capture Metadata** | Authoritative `x-ring-captured-at` or `Last-Modified` | Deterministic synthetic timestamp |
 | **Webhooks** | Real Ring HMAC-signed webhook delivery (v1.1 schema) | Synthetic event simulation dispatch |
+| **Event History** | Paginated `GET /v1/devices/{id}/events` following `links.next` | Mock paginated event list |
 | **Vision Inference** | Amazon Bedrock (`amazon.nova-lite-v1:0`) | `SimulatorVisionAnalyzer` or Bedrock |
-| **UI Badge** | `CONNECTED (REAL RING)` / `RING LIVE TELEMETRY` | `SIMULATED` / `SIMULATED LOCAL EVENT` |
+| **UI Badge** | `CONNECTED (OFFICIAL RING)` / `OFFICIAL RING` | `SIMULATED RING` / `SIMULATED RING + AMAZON BEDROCK` |
 
 ---
 
-## 8. Phase 4 Proactive Assurance & Remediation Workflow
+## 8. Phase 5 Hardened Ring Evidence Pipeline & Post-Remediation Verification
 
-OpenWay turns domain, Ring, and Bedrock components into a complete, closed-loop proactive assurance system:
+OpenWay enforces an uncompromised distinction between an event that occurred, evidence that existed, and evidence that was actually captured after remediation:
 
-1. **Preemptive Event-Driven Trigger**: Ring motion or ding events trigger assurance checks before an accessibility-dependent visitor encounters an obstruction. OpenWay does **NOT** claim or perform continuous video surveillance.
-2. **Explicit Event Correlation**: `EventCorrelator` deterministically maps Ring devices and camera components to configured entrances. Unmapped hardware is rejected (`UNBOUND_DEVICE`).
-3. **Fresh Evidence Acquisition**: `EvidenceAcquisitionService` requests fresh visual evidence using `latest_in_range` surrounding the event timestamp and preserves actual device provenance.
-4. **AI Subordination Invariant**: AI outputs tri-state environmental observations only (`"TRUE" | "FALSE" | "UNKNOWN"`). The AI model **never** determines OpenWay application state (`VERIFIED_RESTORED` vs `INTERRUPTED`).
-5. **Remediation Task Workflow**: Physical interruptions automatically dispatch actionable remediation tasks (`RemediationTask`) detailing required physical actions.
-6. **Staff Action Model & Boundary**: Staff reporting `COMPLETE` marks physical action done, but **never** restores access. The system transitions to `RECHECKING` and initiates verification.
-7. **Post-Remediation Verification Gate**: `RecheckService` explicitly requests new camera evidence and evaluates the pure deterministic `RestorationGatekeeper` against all 9 verification conditions (`capturedAt >= completedAt`, matching camera, fresh, non-contradictory).
-8. **Event History Reconciliation**: `EventReconciliationService` discovers and idempotently recovers missed Ring events after transient network outages.
-9. **Append-Only Evidence Timeline**: Chronological operator audit trail recording the full operational chain (`RING EVENT → FRESH EVIDENCE → OBSERVATION → ACCESS INTERRUPTED → TASK CREATED → STAFF ACKNOWLEDGED → REMEDIATION REPORTED → VERIFICATION STARTED → FRESH EVIDENCE → VERIFIED RESTORED`).
+1. **Three Distinct Temporal Concepts**:
+   - **EVENT TIME**: When Ring reports that an environmental change occurred.
+   - **CAPTURE TIME**: When the camera sensor physically captured the media frame.
+   - **RECEIPT TIME**: When OpenWay received the HTTP response.
+   OpenWay **never** substitutes receipt or request time for capture time. `requestAt > completedAt` does **not** imply `capturedAt > completedAt`.
+2. **Temporal Evidence Classification**:
+   Every evidence artifact is deterministically classified:
+   - `PRE_REMEDIATION`: Captured before staff completed the remediation task.
+   - `POST_REMEDIATION`: Captured at or after remediation completion timestamp (`capturedAt >= completedAt`).
+   - `TEMPORALLY_UNVERIFIED`: Capture timestamp cannot be established from provider metadata. Resolves to `UNKNOWN`.
+   - `STALE`: Exceeds the venue's configured maximum evidence age (default: 300s). Resolves to `UNKNOWN`.
+   - `INVALID`: Plagued by future timestamps or malformed ISO date strings.
+3. **10-Point Post-Remediation Verification Rule (`verifyPostRemediationEvidence`)**:
+   Mandatory requirements before declaring `VERIFIED_RESTORED`:
+   1. Evidence exists;
+   2. Evidence capture time is known;
+   3. Capture time is at or after remediation completion (`capturedAt >= completedAt`);
+   4. Evidence matches configured entrance;
+   5. Evidence matches configured device;
+   6. Evidence matches configured camera component;
+   7. Evidence is fresh;
+   8. Observation is structurally valid;
+   9. Observation satisfies all configured requirements (`pathwayClear = TRUE`, `obstructionPresent = FALSE`, `doorReady = TRUE`);
+   10. No contradictory current evidence exists.
+   If any condition fails, the system yields `UNKNOWN` (or `ACTION_REQUIRED` if an obstruction remains visible). It **never** issues a false green.
+4. **SSRF Redirect Hardening**:
+   Ring's `POST /media/image/download` endpoint returns HTTP 303 pointing to an S3 pre-signed URL in the `Location` header. `RingClient` strictly validates destination hostnames against `*.ring.com`, `*.amazonvision.com`, and `*.amazonaws.com`, blocking arbitrary redirect targets, private RFC 1918 IPs, and AWS metadata endpoints (`169.254.169.254`).
+5. **Event History Pagination**:
+   Reconciliation follows official Ring JSON:API pagination semantics via `links.next` without hardcoding page sizes or numeric offsets.
 
 For in-depth architectural and policy documentation, see:
+- [Ring Evidence Semantics & Download Audit](docs/ring-evidence-semantics.md)
+- [Live Ring Verification Status](docs/live-ring-verification.md)
 - [Proactive Assurance & Remediation Workflow](docs/proactive-assurance.md)
 - [Multimodal Vision Pipeline & Bedrock Integration](docs/vision-pipeline.md)
 - [Assurance State Machine Specification](docs/assurance-state-machine.md)
@@ -175,7 +199,7 @@ For in-depth architectural and policy documentation, see:
 ## 9. Current Limitations & Scope Boundary
 
 1. **Scope Boundary**: OpenWay only verifies camera-observable physical conditions explicitly configured by the venue (e.g. ramp clearance, doorway paths). It does **not** certify compliance with overall municipal or legal building codes.
-2. **Short-Lived Playground Tokens**: Playground tokens expire in ~30–60 minutes and require manual re-issuing until the full OAuth 2.0 Account Linking flow is completed in Phase 3.
+2. **Short-Lived Playground Tokens**: Playground tokens expire in ~30–60 minutes and require manual re-issuing until the full OAuth 2.0 Account Linking flow is completed in Phase 6.
 3. **No Direct Actuation**: OpenWay verifies and coordinates remediation; it does not autonomously control physical door locks or motors.
 
 ---

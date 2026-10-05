@@ -94,26 +94,26 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `AccessibilityRequirements`: Typed physical conditions (`pathwayClear`, `obstructionFree`, `doorReady`).
 
 ### 2. Evidence Layer (`src/evidence/`)
-- `types.ts`: Provider-neutral `Evidence` schema with strict provenance tracking (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`) and tri-state `AccessibilityObservation`.
+- `types.ts`: Provider-neutral `Evidence` schema with strict provenance tracking (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`), `temporalClassification` (`PRE_REMEDIATION`, `POST_REMEDIATION`, `TEMPORALLY_UNVERIFIED`, `STALE`, `INVALID`), and tri-state `AccessibilityObservation`.
+- `temporalClassification.ts`: Explicit temporal classification distinguishing EVENT TIME, CAPTURE TIME, and RECEIPT TIME against task completion timestamp and max age limits.
 - `freshness.ts`: Pure deterministic freshness evaluator based on capture timestamp, evaluation time, max age thresholds, and clock drift tolerance.
 - `aggregation.ts`: Evaluates evidence freshness, camera binding, requirements satisfaction, and contradictory observations.
+- `evidenceAcquisition.ts`: Acquires fresh visual evidence from Ring media download endpoints (`latest_in_range` / `at_timestamp`), preserves camera provenance, extracts authoritative capture timestamps, and classifies temporality.
 
 ### 3. Policy Layer (`src/policy/`)
-- `restorationGatekeeper.ts`: Pure deterministic function implementing `canDeclareRestored`. Enforces all 9 mandatory conditions before declaring `VERIFIED_RESTORED`.
+- `postRemediationVerifier.ts`: Implements `verifyPostRemediationEvidence(...)` enforcing all 10 mandatory conditions (existence, known capture time, `capturedAt >= completedAt`, entrance match, device match, component match, freshness, schema validity, requirement satisfaction, non-contradiction).
+- `restorationGatekeeper.ts`: Pure deterministic function implementing `canDeclareRestored`. Evaluates restoration eligibility and rejects premature or unverified evidence.
 
 ### 4. Workflow & Orchestration Layer (`src/workflow/`)
 - `accessAssuranceOrchestrator.ts`: Async processing boundary for Ring events. Coordinates event correlation, fresh evidence acquisition, multimodal vision inference, state transitions, and remediation dispatch with deduplication (`provider_eventId_deviceId`).
 - `eventCorrelator.ts`: Deterministically maps Ring events to configured entrances via `deviceId` and `componentId`. Rejects unbound hardware (`UNBOUND_DEVICE`) with audit logging.
-- `recheckService.ts`: Bounded post-remediation verification workflow. Explicitly requests fresh Ring evidence captured after staff completion (`capturedAt >= completedAt`), invokes pure `RestorationGatekeeper`, and transitions to `VERIFIED_RESTORED`, `ACTION_REQUIRED`, or `UNKNOWN`.
-- `eventReconciliation.ts`: Lightweight event history recovery abstraction. Recovers missed Ring events after transient outages and replays them idempotently through the orchestrator.
+- `recheckService.ts`: Bounded post-remediation verification workflow. Explicitly requests fresh Ring evidence captured after staff completion (`capturedAt >= completedAt`), invokes `verifyPostRemediationEvidence`, and transitions to `VERIFIED_RESTORED`, `ACTION_REQUIRED`, or `UNKNOWN`.
+- `eventReconciliation.ts`: Lightweight event history recovery abstraction. Recovers missed Ring events via paginated `links.next` navigation and replays them idempotently while preserving temporal verification invariants.
 - `stateMachine.ts`: Deterministic Assurance State Machine (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`) with invalid transition rejection and structured logging.
-- `simulatorWorkflow.ts`: Exercises the full Phase 4 demo suite (Scenarios A through H) using the same application services as production code.
+- `simulatorWorkflow.ts`: Exercises the canonical demo flow and deliberate failure demos using the same application services as production code.
 
-### 5. Evidence Layer (`src/evidence/`)
-- `evidenceAcquisition.ts`: Acquires fresh visual evidence from Ring media download endpoints (`latest_in_range` / `at_timestamp`), preserves camera provenance, evaluates capture-time freshness, and handles in-memory JPEG buffers.
-- `types.ts`: Provider-neutral `Evidence` schema with strict provenance tracking (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`) and tri-state `AccessibilityObservation`.
-- `freshness.ts`: Pure deterministic freshness evaluator based on capture timestamp, evaluation time, max age thresholds, and clock drift tolerance.
-- `aggregation.ts`: Evaluates evidence freshness, camera binding, requirements satisfaction, and contradictory observations.
+### 5. Telemetry Layer (`src/telemetry/`)
+- `metrics.ts`: Centralized in-memory metrics registry tracking `ringEvidenceCalls`, `bedrockCalls`, `dedupeHits`, `recheckAttempts`, `unknownOutcomes`, and `verifiedRestorations`.
 
 ### 6. Persistence Layer (`src/persistence/`)
 - `repositories.ts`: Clean repository contracts decoupling the domain from storage engines (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `ObservationRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`).
@@ -130,7 +130,9 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `modelConfig.ts`: Environment-driven configuration (`AWS_REGION`, `BEDROCK_MODEL_ID`, `BEDROCK_GUARDRAIL_ID`, `BEDROCK_GUARDRAIL_VERSION`).
 
 ### 8. Ring Integration Layer (`src/ring/`)
-- Server-side client, JSON:API compound document parser, media download handler, and webhook HMAC-SHA256 signature verification engine.
+- `RingClient.ts`: Server-side HTTP client with SSRF redirect origin protection (`isValidRingMediaHost`), authoritative capture timestamp extraction (`x-ring-captured-at`, `Last-Modified`), and 416/503 handling.
+- `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `links.next`.
+- `RingSimulatorProvider.ts`: Deterministic offline simulator maintaining strict `SIMULATED_LOCAL` provenance separation.
 
 ---
 
@@ -141,7 +143,10 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 | **Evidence Stale** | Freshness evaluator rejects timestamps exceeding max age threshold. | `UNKNOWN` |
 | **Contradictory Observations** | Aggregator flags conflicting fresh observations. | `UNKNOWN` |
 | **Wrong Camera Evidence** | Gatekeeper and API reject evidence whose device/component does not match entrance binding. | `REJECTED` (State unaffected) |
-| **Premature "Fixed" Claim**| Gatekeeper compares evidence `capturedAt` with remediation `completedAt`. | `RECHECKING` (Not restored) |
+| **Pre-Remediation Evidence Reuse** | `verifyPostRemediationEvidence` requires `capturedAt >= completedAt`. | `UNKNOWN` |
+| **Missing Capture Timestamp** | Temporal classifier marks evidence `TEMPORALLY_UNVERIFIED`. | `UNKNOWN` |
+| **Media 404 / 416 / Timeout** | Client catches upstream media absence and surfaces typed error. | `UNKNOWN` |
+| **Arbitrary Redirect SSRF** | `isValidRingMediaHost` rejects non-Ring/non-AWS redirect targets. | Download Aborted / Rejected |
 | **Upstream 429 Rate Limit** | Bounded exponential backoff with jitter in `RingClient`. | Operational continuity |
 | **Duplicate Webhook** | In-memory sliding TTL cache keyed on `meta.request_id`. | Gracefully swallowed (`duplicate`) |
 | **Storage Transaction Failure**| Snapshot restoration rolls back all partial mutations atomically. | Consistent pre-transaction state |

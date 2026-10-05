@@ -100,7 +100,7 @@ export interface RingImageEvidence {
   deviceId: string;
   url?: string;
   dataUrl?: string; // base64 representation if direct binary/data is fetched
-  capturedAt: string;
+  capturedAt?: string; // Authoritative capture time from Ring metadata (may be omitted/undefined)
   width?: number;
   height?: number;
   format: string; // "image/jpeg" | "image/png" | "image/svg+xml"

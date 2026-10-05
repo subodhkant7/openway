@@ -25,6 +25,17 @@ export type EvidenceProvenance =
 
 export type EvidenceFreshness = "FRESH" | "STALE" | "INVALID" | "UNKNOWN";
 
+/**
+ * Phase 5 Explicit Temporal Classification
+ * Strictly separates PRE_REMEDIATION from POST_REMEDIATION evidence.
+ */
+export type TemporalEvidenceClassification =
+  | "PRE_REMEDIATION"
+  | "POST_REMEDIATION"
+  | "TEMPORALLY_UNVERIFIED"
+  | "STALE"
+  | "INVALID";
+
 export interface Evidence {
   id: string;
   venueId: string;
@@ -33,13 +44,14 @@ export interface Evidence {
   providerEventId?: string;
   deviceId: string;
   componentId: string;
-  capturedAt: string;     // ISO 8601 timestamp of camera capture
+  capturedAt?: string;     // ISO 8601 timestamp of camera capture (may be undefined if provider omitted metadata)
   receivedAt: string;     // ISO 8601 timestamp when received by OpenWay
   evidenceType: EvidenceType;
   mediaReference?: string;
   provenance: EvidenceProvenance;
   isSimulated: boolean;
   freshness: EvidenceFreshness;
+  temporalClassification?: TemporalEvidenceClassification;
   checksum?: string;
   createdAt: string;
 }

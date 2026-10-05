@@ -44,6 +44,37 @@ function formatTime(isoString?: string): string {
   }
 }
 
+function getEvidenceBadge(evidence?: Evidence | null, observation?: DetailedVisionObservation | null) {
+  if (!evidence) {
+    return <span className="font-mono text-slate-400 text-xs">NO EVIDENCE</span>;
+  }
+
+  const isLiveRing = evidence.provenance === "OFFICIAL_RING";
+  const isBedrock = observation?.analyzer?.toLowerCase().includes("bedrock") || observation?.isSimulated === false;
+
+  if (isLiveRing) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-sky-500/20 border border-sky-500/40 px-2 py-0.5 font-mono text-[11px] font-bold text-sky-300">
+        OFFICIAL RING
+      </span>
+    );
+  }
+
+  if (isBedrock) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-purple-500/20 border border-purple-500/40 px-2 py-0.5 font-mono text-[11px] font-bold text-purple-300">
+        SIMULATED RING + AMAZON BEDROCK
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-300">
+      SIMULATED RING
+    </span>
+  );
+}
+
 export function EntranceAssuranceCard({
   entrance,
   assuranceStatus,
@@ -118,7 +149,7 @@ export function EntranceAssuranceCard({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
-            Phase 4 Assurance Workflow Console
+            Phase 5 Assurance Workflow Console
           </span>
           <h2 id="entrance-assurance-heading" className="text-lg font-bold text-white flex items-center gap-2">
             Selected Entrance Assurance
@@ -209,11 +240,11 @@ export function EntranceAssuranceCard({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   <div>
-                    <span className="text-slate-400 block">Trigger Evidence:</span>
-                    <strong className="text-sky-300 font-mono">
-                      {latestEvidence?.provenance === "OFFICIAL_RING" ? "OFFICIAL RING" : "SIMULATED RING"}
-                    </strong>{" "}
-                    <span className="text-slate-500 font-mono text-[10px]">({latestEvidence?.id || "camera trigger"})</span>
+                    <span className="text-slate-400 block mb-1">Trigger Evidence:</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {getEvidenceBadge(latestEvidence, latestObservation)}
+                      <span className="text-slate-500 font-mono text-[10px]">({latestEvidence?.id || "camera trigger"})</span>
+                    </div>
                   </div>
                   <div>
                     <span className="text-slate-400 block">Observed Issue:</span>
@@ -321,10 +352,10 @@ export function EntranceAssuranceCard({
                 </div>
 
                 <div className="text-xs text-slate-300 space-y-1">
-                  <div>
-                    Fresh Evidence Capture:{" "}
-                    <strong className="text-emerald-300">{formatTime(latestEvidence?.capturedAt)}</strong>{" "}
-                    <span className="text-slate-500 font-mono text-[10px]">({latestEvidence?.provenance})</span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span>Fresh Evidence:</span>
+                    <strong className="text-emerald-300">{formatTime(latestEvidence?.capturedAt)}</strong>
+                    {getEvidenceBadge(latestEvidence, latestObservation)}
                   </div>
                   <div className="pt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div className="flex items-center gap-1.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 px-2 py-1.5 text-emerald-200">
