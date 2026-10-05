@@ -1,30 +1,34 @@
 import React, { useState } from "react";
-import { Zap, Wifi, WifiOff, Bell, Package, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Zap, CheckCircle2, AlertTriangle, UserCheck, ShieldCheck, HelpCircle, ShieldAlert, RefreshCw } from "lucide-react";
+import { SimulatorScenarioName } from "@/workflow/simulatorWorkflow";
 
 interface SimulatorControlsProps {
   onTriggerAction: () => void;
-  selectedDeviceId?: string;
+  selectedEntranceId?: string;
 }
 
-export function SimulatorControls({ onTriggerAction, selectedDeviceId }: SimulatorControlsProps) {
+export function SimulatorControls({ onTriggerAction, selectedEntranceId }: SimulatorControlsProps) {
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  const sendAction = async (payload: Record<string, unknown>) => {
+  const runScenario = async (scenario: SimulatorScenarioName) => {
     setLoading(true);
     setFeedback(null);
     try {
-      const res = await fetch("/api/ring/simulate", {
+      const res = await fetch("/api/simulator/scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          scenario,
+          entranceId: selectedEntranceId || "entrance_side_accessible",
+        }),
       });
       const data = await res.json();
-      if (data.success) {
-        setFeedback(data.message);
+      if (data.success && data.result) {
+        setFeedback(`${data.result.description} Result: ${data.result.resultingState} (Passed: ${data.result.passed})`);
         onTriggerAction();
       } else {
-        setFeedback(`Error: ${data.message}`);
+        setFeedback(`Error: ${data.error || "Scenario failed"}`);
       }
     } catch (err) {
       setFeedback(`Failed: ${err instanceof Error ? err.message : "Network error"}`);
@@ -45,106 +49,87 @@ export function SimulatorControls({ onTriggerAction, selectedDeviceId }: Simulat
           </div>
           <div>
             <h2 id="simulator-controls-heading" className="text-sm font-bold text-amber-300">
-              Deterministic Simulator Workbench
+              Phase 2 Deterministic Simulator Scenarios
             </h2>
             <p className="text-[11px] text-amber-400/80">
-              Trigger predictable Ring hardware events and edge cases for local testing &amp; demo
+              Test &amp; demonstrate state machine transitions, verification invariants, and failure paths
             </p>
           </div>
         </div>
         <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/40">
-          LOCAL DEV MODE
+          DETERMINISTIC SUITE
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            sendAction({
-              action: "MOTION_EVENT",
-              deviceId: selectedDeviceId,
-              summary: "Ramp Motion Detected: Patron approaching entrance ramp",
-            })
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-950/40 px-3 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-900/50 transition disabled:opacity-50"
+          onClick={() => runScenario("SCENARIO_1_NORMAL")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/50 transition disabled:opacity-50 text-left"
         >
-          <Bell className="h-3.5 w-3.5 text-sky-400" />
-          Trigger Motion
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
+          <span><strong>1. Normal:</strong> AVAILABLE</span>
         </button>
 
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            sendAction({
-              action: "PACKAGE_EVENT",
-              deviceId: selectedDeviceId,
-              summary: "Delivery Package Dropped: Package left on accessible ramp pathway",
-            })
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-1.5 text-xs font-semibold text-amber-200 hover:bg-amber-900/50 transition disabled:opacity-50"
+          onClick={() => runScenario("SCENARIO_2_OBSTRUCTION")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-900/50 transition disabled:opacity-50 text-left"
         >
-          <Package className="h-3.5 w-3.5 text-amber-400" />
-          Trigger Delivery (Obstruction)
+          <AlertTriangle className="h-3.5 w-3.5 text-rose-400 flex-shrink-0" />
+          <span><strong>2. Obstruction:</strong> INTERRUPTED</span>
         </button>
 
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            sendAction({
-              action: "TRIGGER_EVENT",
-              eventType: "access_path_clear",
-              deviceId: selectedDeviceId,
-              summary: "Assurance Verification: Physical ramp unobstructed and clear",
-            })
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-950/40 px-3 py-1.5 text-xs font-semibold text-emerald-200 hover:bg-emerald-900/50 transition disabled:opacity-50"
+          onClick={() => runScenario("SCENARIO_3_STAFF_FALSE_CLAIM")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/40 bg-sky-950/40 px-3 py-1.5 text-xs font-semibold text-sky-200 hover:bg-sky-900/50 transition disabled:opacity-50 text-left"
         >
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-          Trigger Path Clear
+          <UserCheck className="h-3.5 w-3.5 text-sky-400 flex-shrink-0" />
+          <span><strong>3. Staff Claims Fixed:</strong> RECHECKING</span>
         </button>
 
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            sendAction({
-              action: "DEVICE_ONLINE",
-              deviceId: selectedDeviceId || "sim_device_curb_cut",
-            })
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition disabled:opacity-50"
+          onClick={() => runScenario("SCENARIO_4_FRESH_CLEAR_EVIDENCE")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/50 bg-emerald-900/40 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-900/60 transition disabled:opacity-50 text-left"
         >
-          <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-          Set Device Online
+          <ShieldCheck className="h-3.5 w-3.5 text-emerald-300 flex-shrink-0" />
+          <span><strong>4. Fresh Evidence:</strong> VERIFIED RESTORED</span>
         </button>
 
         <button
           type="button"
           disabled={loading}
-          onClick={() =>
-            sendAction({
-              action: "DEVICE_OFFLINE",
-              deviceId: selectedDeviceId || "sim_device_front_ramp",
-            })
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition disabled:opacity-50"
+          onClick={() => runScenario("SCENARIO_5_STALE_CLEAR_EVIDENCE")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition disabled:opacity-50 text-left"
         >
-          <WifiOff className="h-3.5 w-3.5 text-rose-400" />
-          Set Device Offline
+          <HelpCircle className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+          <span><strong>5. Stale Evidence:</strong> UNKNOWN</span>
         </button>
 
         <button
           type="button"
           disabled={loading}
-          onClick={() => sendAction({ action: "DISCONNECTED" })}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-950/30 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-900/40 transition disabled:opacity-50"
+          onClick={() => runScenario("SCENARIO_6_CONTRADICTORY_EVIDENCE")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition disabled:opacity-50 text-left"
         >
-          <AlertTriangle className="h-3.5 w-3.5" />
-          Simulate Disconnection
+          <HelpCircle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0" />
+          <span><strong>6. Contradictory:</strong> UNKNOWN</span>
+        </button>
+
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => runScenario("SCENARIO_7_WRONG_CAMERA")}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-rose-600/40 bg-rose-950/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-900/40 transition disabled:opacity-50 text-left sm:col-span-2"
+        >
+          <ShieldAlert className="h-3.5 w-3.5 text-rose-400 flex-shrink-0" />
+          <span><strong>7. Wrong Camera:</strong> REJECTED (No Restoration)</span>
         </button>
       </div>
 

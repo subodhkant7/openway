@@ -175,14 +175,50 @@ describe("OpenWay Operator UI Components", () => {
   it("renders EntranceAssuranceCard with [not configured yet] empty state", () => {
     render(
       <EntranceAssuranceCard
-        selectedDevice={null}
-        devices={[]}
-        onSelectDevice={vi.fn()}
+        entrance={null}
         assuranceStatus="UNCONFIGURED"
+        activeRemediation={null}
+        requirements={{ pathwayClear: true, obstructionFree: true, doorReady: true }}
       />
     );
 
     expect(screen.getAllByText("[not configured yet]").length).toBeGreaterThan(0);
+  });
+
+  it("renders EntranceAssuranceCard with configured entrance and AVAILABLE state", () => {
+    const mockEntrance = {
+      id: "ent_01",
+      venueId: "ven_01",
+      name: "Side Ramp Entrance",
+      description: "Dedicated step-free ramp",
+      enabled: true,
+      cameraBinding: {
+        deviceId: "cam_front",
+        componentId: "comp_vid",
+        deviceName: "Front Camera",
+      },
+      requirements: {
+        pathwayClear: true,
+        obstructionFree: true,
+        doorReady: true,
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    render(
+      <EntranceAssuranceCard
+        entrance={mockEntrance}
+        assuranceStatus="AVAILABLE"
+        activeRemediation={null}
+        requirements={mockEntrance.requirements}
+      />
+    );
+
+    expect(screen.getByText("ACCESS AVAILABLE")).toBeInTheDocument();
+    expect(screen.getByText("Side Ramp Entrance")).toBeInTheDocument();
+    expect(screen.getByText(/Front Camera/)).toBeInTheDocument();
+    expect(screen.getByText("Pathway Clear")).toBeInTheDocument();
   });
 
   it("renders PrivacyNotice with zero facial tracking guarantee", () => {

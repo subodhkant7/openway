@@ -1,6 +1,6 @@
-# OpenWay Phase 1 — Interactive Demo Script
+# OpenWay Phase 2 — Interactive Demo Script
 
-This script walks through a complete, deterministic 3-minute demonstration of OpenWay's Phase 1 capabilities, covering both live Ring Developer Playground integration and the offline local simulator.
+This script walks through a complete, deterministic demonstration of OpenWay's Phase 2 accessibility assurance state machine, verification gatekeeper, and evidence timeline.
 
 ---
 
@@ -11,66 +11,113 @@ This script walks through a complete, deterministic 3-minute demonstration of Op
 
 ---
 
+## The Core Product Narrative
+
+```text
+AVAILABLE
+  └── obstruction detected
+        ↓
+INTERRUPTED
+  └── remediation task dispatched
+        ↓
+ACTION REQUIRED
+  └── staff reports fixed
+        ↓
+RECHECKING (Verification Pending)
+  ├── stale evidence / contradiction  ──>  UNKNOWN
+  └── fresh post-remediation evidence ──>  VERIFIED RESTORED
+```
+
+---
+
 ## Step-by-Step Demonstration Flow
 
-### 1. Launch OpenWay & View Initial State
+### 1. View Configured Entrance & Baseline Assurance
 1. Open [http://localhost:3000](http://localhost:3000).
-2. Point out the clean **Operator Interface**:
-   - Header: **OPENWAY — Accessibility Assurance (Powered by Ring)**.
-   - Privacy-By-Design notice with **Zero Facial Tracking** guarantee.
-   - **Ring Connection Card**: Highlights active provider mode and gateway endpoint.
-   - **Selected Entrance**: Shows `[not configured yet]` in initial state.
-   - **Ring Devices**: Lists discovered hardware with user-assigned names and capability badges.
-   - **Latest Ring Observation**: Displays real-time normalized telemetry stream.
+2. Review the **Selected Entrance Assurance** card:
+   - Configured Entrance: **Side Accessible Entrance** at Maple Street Cafe.
+   - Bound Ring Camera: **Front Ramp Camera (cam_front_entrance / component_video_01)**.
+   - Typed Requirements: Pathway Clear, Obstruction Free, Door Ready.
+   - Assurance Badge: **`ACCESS AVAILABLE`**.
+3. Point out the **Evidence & Assurance Timeline**:
+   - Initial baseline audit event timestamped and logged.
 
 ---
 
-### 2. Demonstrate Local Simulator Fallback
-1. By default, OpenWay launches in `simulator` mode.
-2. Note the amber **`SIMULATED`** badge on the connection card and telemetry events.
-3. Show the discovered entrance cameras:
-   - *Main Accessible Ramp Entrance* (Online, Doorbell)
-   - *Automatic Side Access Door* (Online, Stick Up Cam)
-   - *Drop-off Zone & Accessible Curb Cut* (Offline, Floodlight Cam)
-4. Click **"Bind Main Accessible Ramp Entrance"** under Selected Entrance.
-   - Entrance state transitions to: `ACCESS ASSURED & VERIFIED`.
+### 2. Trigger Scenario 2: Ramp Obstruction
+1. Under **Phase 2 Deterministic Simulator Scenarios**, click:
+   - **`2. Obstruction: INTERRUPTED`**
+2. Observe immediate state transitions:
+   - Entrance transitions to `INTERRUPTED` then **`ACTION REQUIRED`**.
+   - An active **Remediation Task** appears: *"Clear delivery boxes blocking access ramp"*.
+   - The **Evidence & Assurance Timeline** records:
+     - `ACCESS INTERRUPTED`
+     - `REMEDIATION TASK CREATED`
+3. Point out the operator options:
+   - Staff can click **"Acknowledge Task"** to claim assignment.
 
 ---
 
-### 3. Trigger Physical Obstruction & Verification Cycle
-1. In the **Selected Entrance** card, click **"Simulate Ramp Obstruction (Interruption)"** (or use the Simulator Workbench: "Trigger Delivery (Obstruction)").
-2. Observe the entrance state immediately change to:
-   - **`ACCESS INTERRUPTED — REMEDIATION NEEDED`** (flashing high-visibility alert).
-   - Telemetry feed logs: `Temporary obstruction detected in front of Main Accessible Ramp Entrance`.
-3. Highlight OpenWay's core product principle:
-   > *"An alert is not a resolution. A resolution is not verified until new evidence proves the physical state changed."*
-4. Click **"Verify Restored with Fresh Ring Evidence"**:
-   - Status transitions to `PENDING FRESH PHYSICAL EVIDENCE`.
-   - OpenWay queries the Ring camera for a fresh observation snapshot.
-   - After fresh evidence is captured and confirmed, status updates to **`ACCESS ASSURED & VERIFIED`**.
+### 3. Trigger Scenario 3: Staff Claims "Fixed" (The Critical Invariant)
+1. In the **Simulator Workbench**, click:
+   - **`3. Staff Claims Fixed: RECHECKING`**
+   *(Or click "Report Fixed" on the active remediation card)*.
+2. **Key Product Differentiator**:
+   - Notice the state transitions to **`RECHECKING (PENDING EVIDENCE)`**.
+   - **It does NOT show "Restored ✓"!**
+   - The UI explicitly highlights:
+     > *"Remediation reported. Verification required. Awaiting fresh Ring camera verification."*
+   - Timeline records:
+     - `STAFF REPORTED COMPLETE`
+     - `VERIFICATION INITIATED`
 
 ---
 
-### 4. Fetch Fresh Camera Image Evidence
-1. On *Main Accessible Ramp Entrance* in the **Ring Devices** list, click **"Image Evidence"**.
-2. An inline preview displays the verified camera perspective showing the clear accessible ramp doorway and perspective lines with live UTC timestamp.
-3. Note the honest provenance badge: **`SIMULATED - LOCAL TEST EVIDENCE`** in simulator mode, or **`OFFICIAL RING MEDIA DOWNLOAD`** when connected via Ring Partner API.
+### 4. Trigger Scenario 4: Fresh Post-Remediation Verification
+1. Click **`4. Fresh Evidence: VERIFIED RESTORED`** (or "Evaluate Verification Gate").
+2. The pure restoration gatekeeper (`canDeclareRestored`) evaluates all 9 conditions:
+   - Current state is `RECHECKING`.
+   - Completed remediation exists.
+   - Evidence `capturedAt` is strictly **after** task `completedAt`.
+   - Evidence matches entrance camera binding (`cam_front_entrance`).
+   - Evidence is `FRESH`.
+   - Requirements confirmed: `pathwayClear = TRUE`, `obstructionPresent = FALSE`, `doorReady = TRUE`.
+   - No contradictions detected.
+   - Provenance is verified and honest.
+3. State transitions to **`VERIFIED RESTORED`** in emerald green!
+4. The timeline updates with `ACCESS RESTORED — VERIFIED`.
 
 ---
 
-### 5. Connect to Live Ring Developer Playground
-1. In the **Ring Connection Card**, toggle the mode button to **"Playground"**.
-2. If `RING_ACCESS_TOKEN` is configured in `.env.local`:
-   - Connection card transitions to **`CONNECTED (REAL RING)`** in emerald green.
-   - Active device count updates directly from `https://api.amazonvision.com/v1/devices`.
-   - Device capabilities (`Live Video`, `Snapshots`, `Media Clips`, `Motion Events`) reflect actual account permissions.
-3. If no token is configured:
-   - Connection card cleanly displays **`NOT CONFIGURED`** with instructions to supply a playground token without crashing the application.
+### 5. Demonstrate Safe Failure Paths
+
+OpenWay does not optimize only for a happy-path demo. Demonstrate safe handling of uncertainty:
+
+#### A. Stale Evidence (Scenario 5)
+1. Click **`5. Stale Evidence: UNKNOWN`**.
+2. An observation is clear, but captured 15 minutes ago.
+3. OpenWay refuses to declare restoration and transitions to **`ASSESSMENT UNKNOWN`**.
+4. Timeline logs: *"Evidence is stale. Fresh observation is required to assure accessibility."*
+
+#### B. Contradictory Evidence (Scenario 6)
+1. Click **`6. Contradictory: UNKNOWN`**.
+2. Two computer vision analyzers report conflicting findings (one reports clear, one reports obstruction) in the same window.
+3. OpenWay refuses to pick a convenient guess and safely transitions to **`ASSESSMENT UNKNOWN`**.
+
+#### C. Wrong Camera Rejection (Scenario 7)
+1. Click **`7. Wrong Camera: REJECTED`**.
+2. Valid clear evidence is submitted from an unbound camera (`cam_unbound_back_dock`).
+3. The restoration gatekeeper strictly rejects the evidence (`WRONG_CAMERA_DEVICE`).
+4. Assurance state remains protected and the timeline logs: `UNBOUND CAMERA REJECTED`.
 
 ---
 
-### 6. Edge Case & Fault-Tolerance Demonstration
-1. In the **Simulator Workbench**, click **"Set Device Offline"**.
-   - The device immediately reflects **Offline** state.
-2. Click **"Simulate Disconnection"**.
-   - Ring Connection switches to **`ERROR`**, demonstrating graceful failure degradation without unhandled exceptions.
+## 3-Minute Demo Summary
+
+| Phase Step | State | Key Takeaway |
+| :--- | :--- | :--- |
+| **Baseline** | `AVAILABLE` | Venue entrance explicitly bound to Ring hardware. |
+| **Interruption** | `ACTION_REQUIRED` | Obstruction detected; concrete staff remediation task opened. |
+| **Human Claim** | `RECHECKING` | Staff claims fixed &ne; verified fixed. System demands fresh proof. |
+| **Restoration** | `VERIFIED_RESTORED` | Only fresh post-remediation evidence unlocks restoration. |
+| **Failure Cases** | `UNKNOWN` / `REJECTED` | Stale data, contradictions, and wrong cameras never compromise safety. |

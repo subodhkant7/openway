@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { RingDevice, RingEvent, RingProviderStatus } from "@/ring/types";
+import { Entrance, AssuranceState, RemediationTask, AuditEvent, AccessibilityRequirements } from "@/domain/types";
 import { RingConnectionCard } from "./RingConnectionCard";
 import { EntranceAssuranceCard } from "./EntranceAssuranceCard";
+import { EvidenceTimeline } from "./EvidenceTimeline";
 import { DeviceList } from "./DeviceList";
 import { ObservationFeed } from "./ObservationFeed";
 import { PrivacyNotice } from "./PrivacyNotice";
 import { SimulatorControls } from "./SimulatorControls";
-import { ShieldCheck, Video } from "lucide-react";
+import { ShieldCheck, Video, Compass } from "lucide-react";
 
 export function OperatorDashboard() {
   const [activeMode, setActiveMode] = useState<"simulator" | "playground" | "api">("simulator");
@@ -16,12 +18,46 @@ export function OperatorDashboard() {
   const [devices, setDevices] = useState<RingDevice[]>([]);
   const [events, setEvents] = useState<RingEvent[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<RingDevice | null>(null);
-  const [assuranceStatus, setAssuranceStatus] = useState<
-    "ASSURED" | "INTERRUPTED" | "PENDING_VERIFICATION" | "UNCONFIGURED"
-  >("UNCONFIGURED");
+
+  // Phase 2 Domain States
+  const [entrances, setEntrances] = useState<Entrance[]>([]);
+  const [selectedEntrance, setSelectedEntrance] = useState<Entrance | null>(null);
+  const [assuranceStatus, setAssuranceStatus] = useState<AssuranceState | "UNCONFIGURED">("AVAILABLE");
+  const [activeRemediation, setActiveRemediation] = useState<RemediationTask | null>(null);
+  const [timeline, setTimeline] = useState<AuditEvent[]>([]);
+  const [requirements, setRequirements] = useState<AccessibilityRequirements>({
+    pathwayClear: true,
+    obstructionFree: true,
+    doorReady: true,
+  });
+
   const [loading, setLoading] = useState(true);
 
-  // Fetch status, devices, and events
+  // Fetch entrance assurance and timeline
+  const loadAssuranceData = useCallback(async (entranceId: string) => {
+    try {
+      const [assureRes, timeRes] = await Promise.all([
+        fetch(`/api/entrances/${entranceId}/assurance`),
+        fetch(`/api/entrances/${entranceId}/timeline?limit=25`),
+      ]);
+
+      if (assureRes.ok) {
+        const assureData = await assureRes.json();
+        setAssuranceStatus(assureData.state);
+        setActiveRemediation(assureData.activeRemediation || null);
+        if (assureData.requirements) setRequirements(assureData.requirements);
+      }
+
+      if (timeRes.ok) {
+        const timeData = await timeRes.json();
+        setTimeline(timeData.timeline || []);
+      }
+    } catch (err) {
+      console.error("[Dashboard] Error loading assurance data:", err);
+    }
+  }, []);
+
+  // Fetch Ring status, devices, events, and configured entrances
   const loadData = useCallback(async (mode = activeMode) => {
     setLoading(true);
     try {
@@ -32,83 +68,91 @@ export function OperatorDashboard() {
         setStatus(statusData.status);
       }
 
-      // 2. Fetch Devices
+      // 2. Fetch Ring Devices
       const devRes = await fetch(`/api/ring/devices?mode=${mode}`);
       const devData = await devRes.json();
       if (devData.devices) {
         setDevices(devData.devices);
-        // If a device was previously selected, keep it updated
         if (selectedDevice) {
           const freshSelected = devData.devices.find((d: RingDevice) => d.id === selectedDevice.id);
           if (freshSelected) setSelectedDevice(freshSelected);
         }
       }
 
-      // 3. Fetch Events
+      // 3. Fetch Ring Events
       const evRes = await fetch(`/api/ring/events?mode=${mode}&limit=10`);
       const evData = await evRes.json();
       if (evData.events) {
         setEvents(evData.events);
+      }
+
+      // 4. Fetch Configured Entrances
+      const entRes = await fetch("/api/entrances");
+      const entData = await entRes.json();
+      if (entData.entrances && entData.entrances.length > 0) {
+        setEntrances(entData.entrances);
+        const currentEntrance = selectedEntrance || entData.entrances[0];
+        setSelectedEntrance(currentEntrance);
+        await loadAssuranceData(currentEntrance.id);
       }
     } catch (err) {
       console.error("Failed to load OpenWay dashboard data:", err);
     } finally {
       setLoading(false);
     }
-  }, [activeMode, selectedDevice]);
+  }, [activeMode, selectedDevice, selectedEntrance, loadAssuranceData]);
 
   useEffect(() => {
     loadData(activeMode);
   }, [activeMode, loadData]);
-
-  // When entrance device is selected
-  const handleSelectDevice = (device: RingDevice | null) => {
-    setSelectedDevice(device);
-    if (!device) {
-      setAssuranceStatus("UNCONFIGURED");
-    } else {
-      setAssuranceStatus("ASSURED");
-    }
-  };
 
   const handleModeChange = (mode: "simulator" | "playground" | "api") => {
     setActiveMode(mode);
     loadData(mode);
   };
 
-  const handleTriggerInterruption = () => {
-    setAssuranceStatus("INTERRUPTED");
-    // Also push a simulated obstruction event
-    fetch("/api/ring/simulate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "TRIGGER_EVENT",
-        eventType: "access_obstruction_suspected",
-        deviceId: selectedDevice?.id,
-        summary: `Temporary obstruction detected in front of ${selectedDevice?.name || "entrance"}`,
-      }),
-    }).then(() => loadData());
+  const handleAcknowledgeTask = async (taskId: string) => {
+    try {
+      await fetch(`/api/remediation/${taskId}/acknowledge`, { method: "POST" });
+      if (selectedEntrance) await loadAssuranceData(selectedEntrance.id);
+    } catch (err) {
+      console.error("Failed to acknowledge task:", err);
+    }
   };
 
-  const handleResolveWithEvidence = () => {
-    setAssuranceStatus("PENDING_VERIFICATION");
-    // Verify fresh evidence and transition to ASSURED
-    setTimeout(() => {
-      fetch("/api/ring/simulate", {
+  const handleCompleteTask = async (taskId: string) => {
+    try {
+      await fetch(`/api/remediation/${taskId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completedBy: "Staff Operator" }),
+      });
+      if (selectedEntrance) await loadAssuranceData(selectedEntrance.id);
+    } catch (err) {
+      console.error("Failed to complete task:", err);
+    }
+  };
+
+  const handleRunVerificationCheck = async () => {
+    if (!selectedEntrance) return;
+    try {
+      await fetch("/api/simulator/scenario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "TRIGGER_EVENT",
-          eventType: "access_path_clear",
-          deviceId: selectedDevice?.id,
-          summary: `Fresh snapshot evidence verified: physical pathway is completely clear at ${selectedDevice?.name || "entrance"}`,
+          scenario: "SCENARIO_4_FRESH_CLEAR_EVIDENCE",
+          entranceId: selectedEntrance.id,
         }),
-      }).then(() => {
-        setAssuranceStatus("ASSURED");
-        loadData();
       });
-    }, 1200);
+      await loadAssuranceData(selectedEntrance.id);
+    } catch (err) {
+      console.error("Failed to run verification check:", err);
+    }
+  };
+
+  const handleSelectEntrance = async (entrance: Entrance) => {
+    setSelectedEntrance(entrance);
+    await loadAssuranceData(entrance.id);
   };
 
   return (
@@ -124,12 +168,12 @@ export function OperatorDashboard() {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
                   <span>OPENWAY</span>
-                  <span className="text-xs font-semibold uppercase tracking-widest text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20">
-                    Phase 1
+                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Phase 2 Assurance
                   </span>
                 </h1>
                 <p className="text-sm font-medium text-slate-400 mt-0.5">
-                  Accessibility Assurance &bull; Powered by Ring
+                  Real-Time Accessibility Assurance Domain &bull; Powered by Ring
                 </p>
               </div>
             </div>
@@ -156,45 +200,75 @@ export function OperatorDashboard() {
           activeMode={activeMode}
         />
 
-        {/* Section: Selected Entrance */}
+        {/* Section: Entrance Selector (if multiple exist) */}
+        {entrances.length > 1 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <span className="text-xs text-slate-400 flex items-center gap-1">
+              <Compass className="h-3.5 w-3.5 text-sky-400" />
+              Entrances:
+            </span>
+            {entrances.map((ent) => (
+              <button
+                key={ent.id}
+                type="button"
+                onClick={() => handleSelectEntrance(ent)}
+                className={`rounded-lg px-3 py-1 text-xs font-medium border transition ${
+                  selectedEntrance?.id === ent.id
+                    ? "bg-sky-600/30 text-sky-200 border-sky-500/50"
+                    : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                {ent.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Section: Selected Entrance Assurance Card */}
         <EntranceAssuranceCard
-          selectedDevice={selectedDevice}
-          devices={devices}
-          onSelectDevice={handleSelectDevice}
+          entrance={selectedEntrance}
           assuranceStatus={assuranceStatus}
-          onTriggerInterruption={handleTriggerInterruption}
-          onResolveWithEvidence={handleResolveWithEvidence}
+          activeRemediation={activeRemediation}
+          requirements={requirements}
+          onAcknowledgeTask={handleAcknowledgeTask}
+          onCompleteTask={handleCompleteTask}
+          onRunVerificationCheck={handleRunVerificationCheck}
         />
 
-        {/* Grid layout for Devices & Observations */}
+        {/* Grid layout for Timeline & Devices */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-7">
+          <div className="lg:col-span-7 space-y-6">
+            {/* Evidence & Assurance Timeline */}
+            <EvidenceTimeline
+              timeline={timeline}
+              loading={loading}
+              onRefresh={() => selectedEntrance && loadAssuranceData(selectedEntrance.id)}
+            />
+
             {/* Section: Ring Devices */}
             <DeviceList
               devices={devices}
               loading={loading}
-              selectedDeviceId={selectedDevice?.id}
-              onSelectDevice={handleSelectDevice}
+              selectedDeviceId={selectedEntrance?.cameraBinding.deviceId}
+              onSelectDevice={(dev) => setSelectedDevice(dev)}
               activeMode={activeMode}
             />
           </div>
 
           <div className="lg:col-span-5 space-y-6">
-            {/* Section: Latest Ring observation */}
+            {/* Deterministic Simulator Scenario Controls */}
+            <SimulatorControls
+              onTriggerAction={() => selectedEntrance && loadAssuranceData(selectedEntrance.id)}
+              selectedEntranceId={selectedEntrance?.id}
+            />
+
+            {/* Section: Raw Ring Events */}
             <ObservationFeed
               events={events}
               loading={loading}
               onRefreshEvents={() => loadData()}
               activeMode={activeMode}
             />
-
-            {/* Simulator Controls if in Simulator mode */}
-            {activeMode === "simulator" && (
-              <SimulatorControls
-                onTriggerAction={() => loadData()}
-                selectedDeviceId={selectedDevice?.id}
-              />
-            )}
           </div>
         </div>
 
@@ -204,8 +278,8 @@ export function OperatorDashboard() {
             OpenWay &bull; Real-time accessibility assurance for businesses &bull; Built for Amazon Ring
           </p>
           <div className="flex items-center gap-4">
+            <span>Deterministic State Machine</span>
             <span>WCAG 2.2 AA Target</span>
-            <span>Server-side Ring Client</span>
             <span>MIT License</span>
           </div>
         </footer>

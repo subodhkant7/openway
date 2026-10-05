@@ -82,7 +82,7 @@ All Ring credentials remain strictly server-side and are **never exposed to clie
 # 1. Install dependencies
 npm install
 
-# 2. Run test suite (39 tests)
+# 2. Run full test suite (96 tests across 13 suites)
 npm run test
 
 # 3. Verify TypeScript type safety
@@ -102,12 +102,12 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 6. How to Verify the Ring Connection
+## 6. How to Verify the Ring Connection & Assurance States
 
 1. **Simulator Mode (Default)**:
-   - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Connection: SIMULATED` with amber badges.
+   - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Runtime: SIMULATOR` with clear badges.
    - All simulated evidence is honestly stamped: `SIMULATED - LOCAL TEST EVIDENCE`.
-   - Use the **Deterministic Simulator Workbench** in the UI to trigger motion, delivery obstructions, or toggle devices online/offline.
+   - Use the **Deterministic Simulator Workbench** in the operator dashboard to trigger all 7 scenarios (Normal, Obstruction, Staff False Claim, Fresh Evidence Verification, Stale Evidence, Contradictory Evidence, Wrong Camera Rejection).
 2. **Playground Mode**:
    - Set `OPENWAY_PROVIDER=playground` with a valid token in `.env.local` (or click "Playground" in the dashboard's mode selector).
    - Click **"Verify"** in the Ring Connection card.
@@ -131,21 +131,36 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 8. Current Limitations (Phase 1.1)
+## 8. Phase 2 Assurance Capabilities
 
-1. **Short-Lived Playground Tokens**: Playground tokens expire in ~30–60 minutes and require manual re-issuing until the full OAuth 2.0 Account Linking flow is completed in Phase 2.
-2. **Single-Venue Scope**: Phase 1 demonstrates entrance assurance for a single configured venue.
-3. **Hardware Live Evidence Verification**: Image evidence conforms to official `POST /v1/devices/{id}/media/image/download` specification; live-testing requires an active Ring account with granted media permissions.
-4. **Scope Limitations**: OpenWay only verifies camera-observable physical conditions explicitly configured by the venue (e.g. ramp clearance, doorway paths). It does **not** certify compliance with overall municipal or legal building codes.
+OpenWay separates hardware telemetry from accessibility assurance business policy:
+
+1. **Explicit Venue & Entrance Model**: Venues configure entrances with typed accessibility requirements (`pathwayClear`, `obstructionFree`, `doorReady`) and explicit camera bindings (`deviceId`, `componentId`).
+2. **Provider-Neutral Evidence Model**: Unified evidence tracking with strict provenance (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`) and deterministic freshness evaluation.
+3. **Structured Tri-State Observations**: Computer vision and rules output `"TRUE" | "FALSE" | "UNKNOWN"` (never raw state decisions).
+4. **Deterministic Assurance State Machine**: Enforces strict transitions (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`).
+5. **Pure Restoration Gatekeeper**: Evaluates 9 mandatory conditions before restoration can be declared (`canDeclareRestored`).
+6. **Durable Persistence & Repositories**: Repository interfaces (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`) with atomic transactional boundaries.
+7. **Append-Only Evidence Timeline**: Chronological operator audit trail recording every state change and evidence verification.
+
+For in-depth architectural and policy documentation, see:
+- [Assurance State Machine Specification](docs/assurance-state-machine.md)
+- [Evidence & Observation Model](docs/evidence-model.md)
+- [Verification Invariants & Core Principles](docs/verification-invariants.md)
+- [Amazon Ring Developer Tooling Friction Log](docs/friction-log.md)
+- [Architecture Blueprint](ARCHITECTURE.md)
+- [Live Demonstration Guide](DEMO.md)
+- [Hackathon Compliance Checklist](docs/hackathon.md)
+- [Security Model](SECURITY.md)
+- [Privacy Policy](PRIVACY.md)
 
 ---
 
-## 9. Planned Next Phase (Phase 2)
+## 9. Current Limitations & Scope Boundary
 
-- **Automated Evidence AI Pipeline**: Integrate Amazon Bedrock / multimodal Vision AI to inspect fresh Ring snapshots for physical obstruction clearance.
-- **Full OAuth 2.0 Account Linking**: Enable venue owners to link Ring accounts with persistent refresh tokens via Ring Appstore.
-- **Dispatch & Remediation Flow**: Automated SMS/Slack notification to on-duty staff when an obstruction is detected, with a one-click "I Cleared It" verification trigger.
-- **Multi-Entrance Coverage**: Simultaneous assurance across main ramps, automatic doors, elevators, and accessible parking paths.
+1. **Scope Boundary**: OpenWay only verifies camera-observable physical conditions explicitly configured by the venue (e.g. ramp clearance, doorway paths). It does **not** certify compliance with overall municipal or legal building codes.
+2. **Short-Lived Playground Tokens**: Playground tokens expire in ~30–60 minutes and require manual re-issuing until the full OAuth 2.0 Account Linking flow is completed in Phase 3.
+3. **No Direct Actuation**: OpenWay verifies and coordinates remediation; it does not autonomously control physical door locks or motors.
 
 ---
 

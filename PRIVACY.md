@@ -1,8 +1,8 @@
 # OpenWay Privacy Charter
 
-> **"OpenWay analyzes the environment, not people's identities."**
+> **"OpenWay analyzes the physical environment, not people's identities."**
 
-Accessibility assurance requires observing physical conditions—such as wheelchair ramps, automatic entrance doors, elevators, and curb cuts. It **never** requires identifying, profiling, or tracking individuals.
+Accessibility assurance requires observing configured physical conditions—such as wheelchair ramps, automatic entrance doors, elevators, and curb cuts. It **never** requires identifying, profiling, or tracking individuals.
 
 ---
 
@@ -25,6 +25,17 @@ OpenWay enforces strict architectural boundaries in code and policy. The followi
 2. **Evidence Minimization**: When physical evidence is captured to verify that an entrance path has been restored, OpenWay stores only a single low-resolution snapshot showing the cleared pathway.
 3. **Automated Expiration**: Physical evidence snapshots are subject to strict rolling retention policies (e.g. 7-day retention for operator dispute resolution, followed by automated cryptographic erasure).
 4. **Credential Isolation**: All Ring tokens and credentials remain strictly server-side and are never transmitted to client browsers or third-party analytical trackers.
+5. **Sanitized Audit Events**: Audit events record timestamps, correlation IDs, and state transitions; they never store customer names, secrets, signed URLs, or raw image payloads.
+
+---
+
+## Scope Boundary & Legal Notice
+
+OpenWay verifies:
+> **Explicitly configured, camera-observable entrance conditions.**
+
+OpenWay does **not** certify:
+> **General legal building-code certification or ADA compliance.**
 
 ---
 
