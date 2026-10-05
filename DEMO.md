@@ -1,6 +1,6 @@
-# OpenWay Phase 2 — Interactive Demo Script
+# OpenWay Phase 4 — Interactive Demo Script
 
-This script walks through a complete, deterministic demonstration of OpenWay's Phase 2 accessibility assurance state machine, verification gatekeeper, and evidence timeline.
+This script walks through a complete, live demonstration of OpenWay's **Phase 4 proactive accessibility assurance workflow**: from preemptive Ring event detection to automated remediation coordination and fresh-evidence verification.
 
 ---
 
@@ -11,136 +11,124 @@ This script walks through a complete, deterministic demonstration of OpenWay's P
 
 ---
 
-## The Core Product Narrative
+## The Product Story
+
+> A delivery event changes the environment. OpenWay notices the change before an accessibility-dependent visitor encounters it, checks fresh Ring evidence, alerts staff, and refuses to declare the entrance restored until new evidence proves the obstruction is gone.
 
 ```text
-AVAILABLE
-  └── obstruction detected
+Ring detects environmental change (motion / ding)
         ↓
-INTERRUPTED
-  └── remediation task dispatched
+OpenWay obtains fresh evidence (latest_in_range)
         ↓
-ACTION REQUIRED
-  └── staff reports fixed
+Vision produces structured observations (Bedrock Multimodal Analysis)
         ↓
-RECHECKING (Verification Pending)
-  ├── stale evidence / contradiction  ──>  UNKNOWN
-  └── fresh post-remediation evidence ──>  VERIFIED RESTORED
+Deterministic policy evaluates access condition
+        ↓
+ACCESS INTERRUPTION (AVAILABLE → INTERRUPTED → ACTION_REQUIRED)
+        ↓
+Staff remediation workflow (RemediationTask dispatched)
+        ↓
+OpenWay requests fresh post-remediation evidence (Explicit API request)
+        ↓
+Vision produces new observation
+        ↓
+Deterministic restoration gate (Evaluates all 9 gatekeeper conditions)
+        ↓
+VERIFIED_RESTORED (Proven physical restoration)
 ```
 
 ---
 
 ## Step-by-Step Demonstration Flow
 
-### 1. View Configured Entrance & Baseline Assurance
+### 1. View Baseline Entrance Assurance
 1. Open [http://localhost:3000](http://localhost:3000).
 2. Review the **Selected Entrance Assurance** card:
    - Configured Entrance: **Side Accessible Entrance** at Maple Street Cafe.
-   - Bound Ring Camera: **Front Ramp Camera (cam_front_entrance / component_video_01)**.
+   - Bound Ring Camera: **Front Ramp Camera (cam_ring_library_01 / comp: component_video_01)**.
    - Typed Requirements: Pathway Clear, Obstruction Free, Door Ready.
    - Assurance Badge: **`ACCESS AVAILABLE`**.
-3. Point out the **Evidence & Assurance Timeline**:
-   - Initial baseline audit event timestamped and logged.
+3. Point out the **Evidence & Assurance Timeline** showing baseline assurance audit events.
 
 ---
 
-### 2. Trigger Scenario 2: Ramp Obstruction
-1. Under **Phase 2 Deterministic Simulator Scenarios**, click:
-   - **`2. Obstruction: INTERRUPTED`**
-2. Observe immediate state transitions:
-   - Entrance transitions to `INTERRUPTED` then **`ACTION REQUIRED`**.
-   - An active **Remediation Task** appears: *"Clear delivery boxes blocking access ramp"*.
-   - The **Evidence & Assurance Timeline** records:
-     - `ACCESS INTERRUPTED`
-     - `REMEDIATION TASK CREATED`
-3. Point out the operator options:
-   - Staff can click **"Acknowledge Task"** to claim assignment.
+### 2. Run Preemptive Obstruction
+1. In the **Phase 4 Proactive Assurance Demo Workbench**, click:
+   - **`1. RUN PREEMPTIVE OBSTRUCTION`**
+2. Observe immediate automated workflow:
+   - Ring motion event is ingested.
+   - Fresh Ring evidence is explicitly acquired.
+   - Bedrock vision analysis detects delivery boxes on the wheelchair ramp.
+   - State machine transitions: `AVAILABLE → INTERRUPTED → ACTION_REQUIRED`.
+   - An active **Remediation Task** is created with concrete physical description:
+     *"Delivery boxes detected directly on the access ramp pathway."*
+   - Operator console reflects `ACCESS INTERRUPTION DETECTED` with detection timestamp and provenance.
+   - Timeline records: `RING EVENT → FRESH EVIDENCE → OBSERVATION → ACCESS INTERRUPTED → TASK CREATED`.
 
 ---
 
-### 3. Trigger Scenario 3: Staff Claims "Fixed" (The Critical Invariant)
-1. In the **Simulator Workbench**, click:
-   - **`3. Staff Claims Fixed: RECHECKING`**
-   *(Or click "Report Fixed" on the active remediation card)*.
-2. **Key Product Differentiator**:
-   - Notice the state transitions to **`RECHECKING (PENDING EVIDENCE)`**.
-   - **It does NOT show "Restored ✓"!**
-   - The UI explicitly highlights:
-     > *"Remediation reported. Verification required. Awaiting fresh Ring camera verification."*
-   - Timeline records:
-     - `STAFF REPORTED COMPLETE`
-     - `VERIFICATION INITIATED`
+### 3. Run Staff Remediation
+1. Click:
+   - **`2. RUN STAFF REMEDIATION`** (or click "Report Fixed" on the active task card).
+2. Observe the state transition and strict security boundary:
+   - Task transitions to `COMPLETED` by Staff Operator.
+   - Entrance state moves to **`RECHECKING (REQUESTING FRESH EVIDENCE)`**.
+   - Notice the prominent system callout:
+     > **"OpenWay does not accept staff completion as proof. Requesting fresh Ring camera evidence..."**
+   - The entrance **refuses to turn green**.
+   - Timeline records: `STAFF ACKNOWLEDGED → REMEDIATION REPORTED → VERIFICATION STARTED`.
 
 ---
 
-### 4. Trigger Scenario 4: Fresh Post-Remediation Verification
-1. Click **`4. Fresh Evidence: VERIFIED RESTORED`** (or "Evaluate Verification Gate").
-2. The pure restoration gatekeeper (`canDeclareRestored`) evaluates all 9 conditions:
-   - Current state is `RECHECKING`.
-   - Completed remediation exists.
-   - Evidence `capturedAt` is strictly **after** task `completedAt`.
-   - Evidence matches entrance camera binding (`cam_front_entrance`).
-   - Evidence is `FRESH`.
-   - Requirements confirmed: `pathwayClear = TRUE`, `obstructionPresent = FALSE`, `doorReady = TRUE`.
-   - No contradictions detected.
-   - Provenance is verified and honest.
-3. State transitions to **`VERIFIED RESTORED`** in emerald green!
-4. The timeline updates with `ACCESS RESTORED — VERIFIED`.
+### 4. Run Verification (Verified Restored)
+1. Click:
+   - **`3. RUN VERIFICATION`** (or click "Evaluate Fresh Ring Evidence Now").
+2. Observe the restoration gate evaluation:
+   - OpenWay explicitly requests new Ring image evidence.
+   - Temporal integrity check confirms `capturedAt >= completedAt`.
+   - Vision analysis verifies pathway is clear of obstacles.
+   - All 9 deterministic conditions pass in `RestorationGatekeeper`.
+   - Entrance state transitions to **`ACCESS RESTORED — VERIFIED`**.
+   - Console displays checkmarks:
+     - *Pathway clear ✓*
+     - *Obstruction absent ✓*
+     - *Door ready ✓*
+   - Timeline records: `FRESH EVIDENCE → ACCESS RESTORED — VERIFIED`.
 
 ---
 
-### 5. Demonstrate Safe Failure Paths
+### 5. Prove Defense Against False Green
 
-OpenWay does not optimize only for a happy-path demo. Demonstrate safe handling of uncertainty:
+#### A. Stale Evidence Verification
+1. Click **`4. RUN STALE VERIFICATION`**.
+2. Staff completed a task, but evidence provided was captured *before* completion.
+3. The deterministic gatekeeper rejects the stale evidence (`TEMPORAL_INCONSISTENCY`).
+4. Resulting State: **`ASSESSMENT UNKNOWN`**. No false green is declared.
 
-#### A. Stale Evidence (Scenario 5)
-1. Click **`5. Stale Evidence: UNKNOWN`**.
-2. An observation is clear, but captured 15 minutes ago.
-3. OpenWay refuses to declare restoration and transitions to **`ASSESSMENT UNKNOWN`**.
-4. Timeline logs: *"Evidence is stale. Fresh observation is required to assure accessibility."*
+#### B. Evidence Unavailable
+1. Click **`5. RUN UNKNOWN VERIFICATION`**.
+2. Simulates upstream camera outage or network failure during recheck.
+3. OpenWay refuses to restore from stale cached observations.
+4. Resulting State: **`ASSESSMENT UNKNOWN`**.
 
-#### B. Contradictory Evidence (Scenario 6)
-1. Click **`6. Contradictory: UNKNOWN`**.
-2. Two computer vision analyzers report conflicting findings (one reports clear, one reports obstruction) in the same window.
-3. OpenWay refuses to pick a convenient guess and safely transitions to **`ASSESSMENT UNKNOWN`**.
+#### C. False Staff Completion (Scenario C)
+1. Click **`Scenario C: False Complete`**.
+2. Staff claimed the ramp was cleared, but new camera evidence shows boxes still present.
+3. Resulting State: Returns immediately to **`ACTION REQUIRED`**.
 
-#### C. Wrong Camera Rejection (Scenario 7)
-1. Click **`7. Wrong Camera: REJECTED`**.
-2. Valid clear evidence is submitted from an unbound camera (`cam_unbound_back_dock`).
-3. The restoration gatekeeper strictly rejects the evidence (`WRONG_CAMERA_DEVICE`).
-4. Assurance state remains protected and the timeline logs: `UNBOUND CAMERA REJECTED`.
+#### D. Wrong Camera Defense (Scenario F)
+1. Click **`Scenario F: Wrong Camera`**.
+2. Evidence returned belongs to an unbound camera (`cam_unbound_back_dock_99`).
+3. Gatekeeper rejects mismatched device ID (`WRONG_CAMERA_DEVICE`).
+4. Resulting State: **`ASSESSMENT UNKNOWN`**.
 
----
-
-### 6. Demonstrate Phase 3 Multimodal Vision Analysis
-
-Point out the dedicated **Evidence Analysis** panel on the operator dashboard:
-
-1. **Simulated vs. Bedrock Inference**:
-   - The headline clearly displays the analyzed engine: `AMAZON BEDROCK` (when using AWS) or `SIMULATOR VISION` (when using local test harness).
-   - Provenance tag shows `OFFICIAL RING` or `SIMULATED LOCAL`.
-2. **Structured Environmental Conditions**:
-   - **Pathway**: `CLEAR` or `BLOCKED`
-   - **Obstruction**: `ABSENT` or `PRESENT`
-   - **Door**: `READY` or `BLOCKED`
-   - **Evidence Quality**: `SUFFICIENT` or `INSUFFICIENT`
-3. **Observed Features**:
-   - Shows recognized physical elements: e.g. `["accessible ramp", "concrete path", "entrance doorway"]` or `["delivery box", "handrail"]`.
-4. **Factual Explanation**:
-   - Evidence-oriented description without legal/ADA claims.
-5. **Bedrock Unavailable / Degraded Input**:
-   - In case of network timeout, darkness, or occluded lens, the panel displays:
-     > `EVIDENCE INSUFFICIENT — Accessible pathway is not visible. OpenWay cannot safely assess this observation.`
+#### E. Event Lost & Replay (Scenario H)
+1. Click **`Scenario H: Event Recovery & Replay`**.
+2. Simulates a transient webhook delivery interruption.
+3. Event reconciliation queries Ring event history, discovers missed motion event, and idempotently replays it through the assurance pipeline.
 
 ---
 
-## 3-Minute Demo Summary
+## Surveillance Boundary Statement
 
-| Phase Step | State | Key Takeaway |
-| :--- | :--- | :--- |
-| **Baseline** | `AVAILABLE` | Venue entrance explicitly bound to Ring hardware. |
-| **Interruption** | `ACTION_REQUIRED` | Obstruction detected; concrete staff remediation task opened. |
-| **Multimodal AI**| Tri-State Observation | Bedrock observes physical conditions (`"TRUE" \| "FALSE" \| "UNKNOWN"`), not state. |
-| **Human Claim** | `RECHECKING` | Staff claims fixed &ne; verified fixed. System demands fresh proof. |
-| **Restoration** | `VERIFIED_RESTORED` | Only fresh post-remediation evidence unlocks restoration. |
-| **Failure Cases** | `UNKNOWN` / `REJECTED` | Stale data, contradictions, and wrong cameras never compromise safety. |
+OpenWay does **NOT** perform continuous video surveillance. Every observation is triggered by discrete, documented Ring events (motion, button press, device state) and bounded post-remediation verification requests.

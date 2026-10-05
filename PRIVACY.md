@@ -17,6 +17,8 @@ OpenWay enforces strict architectural boundaries in code and policy. The followi
 5. **No Cross-Camera Tracking**: OpenWay evaluates each entrance camera independently within its local spatial boundary; it does not correlate person movements across camera networks.
 7. **No AI Identity or Disability Inference**: System prompts and Bedrock tool schemas strictly prohibit the vision model from analyzing people, identifying individuals, or inferring disability, age, gender, race, or protected characteristics.
 8. **Schema-Enforced Privacy**: The observation schema (`VisionAnalysisOutputSchema`) defines only physical environmental properties (`pathwayClear`, `obstructionPresent`, `doorReady`, `evidenceQuality`, `observedFeatures`, `explanation`). It is structurally impossible to persist identity or demographic traits.
+9. **No Continuous Video Surveillance**: OpenWay does **NOT** claim or conduct continuous video surveillance. Telemetry and evidence capture are strictly event-driven (motion events, doorbell dings) and bounded post-remediation verification requests.
+10. **Visual Evidence Boundary & Transient Obscuration**: A person visible in the scene is **never** inferred to be the reason an entrance is inaccessible. If a person or transient pedestrian partially obscures camera observation of the ramp or doorway, the system safely reports `UNKNOWN` due to insufficient visibility—never an obstruction attributed to a human being.
 
 ---
 

@@ -101,15 +101,25 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 ### 3. Policy Layer (`src/policy/`)
 - `restorationGatekeeper.ts`: Pure deterministic function implementing `canDeclareRestored`. Enforces all 9 mandatory conditions before declaring `VERIFIED_RESTORED`.
 
-### 4. Workflow Layer (`src/workflow/`)
+### 4. Workflow & Orchestration Layer (`src/workflow/`)
+- `accessAssuranceOrchestrator.ts`: Async processing boundary for Ring events. Coordinates event correlation, fresh evidence acquisition, multimodal vision inference, state transitions, and remediation dispatch with deduplication (`provider_eventId_deviceId`).
+- `eventCorrelator.ts`: Deterministically maps Ring events to configured entrances via `deviceId` and `componentId`. Rejects unbound hardware (`UNBOUND_DEVICE`) with audit logging.
+- `recheckService.ts`: Bounded post-remediation verification workflow. Explicitly requests fresh Ring evidence captured after staff completion (`capturedAt >= completedAt`), invokes pure `RestorationGatekeeper`, and transitions to `VERIFIED_RESTORED`, `ACTION_REQUIRED`, or `UNKNOWN`.
+- `eventReconciliation.ts`: Lightweight event history recovery abstraction. Recovers missed Ring events after transient outages and replays them idempotently through the orchestrator.
 - `stateMachine.ts`: Deterministic Assurance State Machine (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`) with invalid transition rejection and structured logging.
-- `simulatorWorkflow.ts`: Exercises all 7 test and demonstration scenarios without requiring live AI models.
+- `simulatorWorkflow.ts`: Exercises the full Phase 4 demo suite (Scenarios A through H) using the same application services as production code.
 
-### 5. Persistence Layer (`src/persistence/`)
+### 5. Evidence Layer (`src/evidence/`)
+- `evidenceAcquisition.ts`: Acquires fresh visual evidence from Ring media download endpoints (`latest_in_range` / `at_timestamp`), preserves camera provenance, evaluates capture-time freshness, and handles in-memory JPEG buffers.
+- `types.ts`: Provider-neutral `Evidence` schema with strict provenance tracking (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`) and tri-state `AccessibilityObservation`.
+- `freshness.ts`: Pure deterministic freshness evaluator based on capture timestamp, evaluation time, max age thresholds, and clock drift tolerance.
+- `aggregation.ts`: Evaluates evidence freshness, camera binding, requirements satisfaction, and contradictory observations.
+
+### 6. Persistence Layer (`src/persistence/`)
 - `repositories.ts`: Clean repository contracts decoupling the domain from storage engines (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `ObservationRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`).
 - `memoryStore.ts`: Transactional storage provider featuring atomic multi-entity transactions with snapshot-based rollback on failure.
 
-### 6. Vision Layer (`src/vision/`)
+### 7. Vision Layer (`src/vision/`)
 - `VisionAnalyzer.ts`: Provider-neutral vision interface (`VisionAnalyzer`, `VisionAnalysisInput`, `DetailedVisionObservation`). Keeps Ring != Vision != Policy.
 - `BedrockVisionAnalyzer.ts`: Implements multimodal analysis using AWS Bedrock Runtime Converse API (`amazon.nova-lite-v1:0`). Enforces platform-level tool calling JSON schemas (`record_accessibility_observation`) and Zod `.strict()` output validation.
 - `SimulatorVisionAnalyzer.ts`: Deterministic simulated vision engine supporting CLEAR, BLOCKED, UNCERTAIN, and CONTRADICTORY scene evaluation.
@@ -119,7 +129,7 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `errors.ts`: Maps upstream AWS Bedrock exceptions (401, 403, 429, 503, timeout) into typed `VisionAnalysisError` instances.
 - `modelConfig.ts`: Environment-driven configuration (`AWS_REGION`, `BEDROCK_MODEL_ID`, `BEDROCK_GUARDRAIL_ID`, `BEDROCK_GUARDRAIL_VERSION`).
 
-### 7. Ring Integration Layer (`src/ring/`)
+### 8. Ring Integration Layer (`src/ring/`)
 - Server-side client, JSON:API compound document parser, media download handler, and webhook HMAC-SHA256 signature verification engine.
 
 ---

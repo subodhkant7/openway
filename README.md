@@ -82,7 +82,7 @@ All Ring credentials remain strictly server-side and are **never exposed to clie
 # 1. Install dependencies
 npm install
 
-# 2. Run full test suite (136 tests across 16 suites)
+# 2. Run full test suite (159 tests across 19 suites)
 npm run test
 
 # 3. Verify TypeScript type safety
@@ -107,7 +107,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 1. **Simulator Mode (Default)**:
    - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Runtime: SIMULATOR` with clear badges.
    - All simulated evidence is honestly stamped: `SIMULATED - LOCAL TEST EVIDENCE`.
-   - Use the **Deterministic Simulator Workbench** in the operator dashboard to trigger all 7 scenarios (Normal, Obstruction, Staff False Claim, Fresh Evidence Verification, Stale Evidence, Contradictory Evidence, Wrong Camera Rejection).
+   - Use the **Phase 4 Proactive Assurance Demo Workbench** in the operator dashboard to execute one-click scenarios:
+     - `RUN PREEMPTIVE OBSTRUCTION` (Ring motion &rarr; Fresh evidence &rarr; INTERRUPTED &rarr; Task OPEN)
+     - `RUN STAFF REMEDIATION` (Staff reports complete &rarr; RECHECKING; verification actively requested)
+     - `RUN VERIFICATION` (Explicit fresh evidence captured after completion &rarr; VERIFIED_RESTORED)
+     - `RUN STALE VERIFICATION` (Evidence captured before task completion rejected &rarr; UNKNOWN)
+     - `RUN UNKNOWN VERIFICATION` (Evidence unavailable &rarr; UNKNOWN; no false green)
+     - Invariant defense tests (Scenarios C, F, G, H).
 2. **Playground Mode**:
    - Set `OPENWAY_PROVIDER=playground` with a valid token in `.env.local` (or click "Playground" in the dashboard's mode selector).
    - Click **"Verify"** in the Ring Connection card.
@@ -115,6 +121,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. **Webhook Verification**:
    - Webhook endpoint is hosted at `POST /api/ring/webhook`.
    - Incoming payloads require an HMAC-SHA256 signature matching `RING_WEBHOOK_SECRET` in the `X-Signature` header.
+   - Webhooks are acknowledged immediately and enqueued across an async processing boundary to trigger proactive assurance.
 4. **Multimodal Bedrock Vision Analysis**:
    - Analyzes Ring camera images in server memory using Amazon Bedrock Runtime Converse API (`amazon.nova-lite-v1:0`).
    - Platform-enforced structured JSON output enforces tri-state values (`"TRUE" | "FALSE" | "UNKNOWN"`).
@@ -129,27 +136,29 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | **Device Discovery** | Real devices retrieved via JSON:API `GET /v1/devices?include=status,capabilities` | Deterministic mock accessibility cameras |
 | **Device Status** | Real-time status via `GET /v1/devices/{id}/status` or compound document | Interactive online/offline toggle |
 | **Capabilities** | Live capabilities via `GET /v1/devices/{id}/capabilities` or compound document | Full 4-capability simulation |
-| **Image Evidence** | `POST /v1/devices/{id}/media/image/download` | Synthetic accessible ramp perspective SVG labeled `SIMULATED` |
+| **Image Evidence** | `POST /v1/devices/{id}/media/image/download` | Synthetic accessible ramp perspective JPEG buffer |
 | **Webhooks** | Real Ring HMAC-signed webhook delivery (v1.1 schema) | Synthetic event simulation dispatch |
 | **Vision Inference** | Amazon Bedrock (`amazon.nova-lite-v1:0`) | `SimulatorVisionAnalyzer` or Bedrock |
 | **UI Badge** | `CONNECTED (REAL RING)` / `RING LIVE TELEMETRY` | `SIMULATED` / `SIMULATED LOCAL EVENT` |
 
 ---
 
-## 8. Phase 3 Multimodal Vision & Assurance Architecture
+## 8. Phase 4 Proactive Assurance & Remediation Workflow
 
-OpenWay separates hardware telemetry and AI interpretation from accessibility assurance business policy:
+OpenWay turns domain, Ring, and Bedrock components into a complete, closed-loop proactive assurance system:
 
-1. **Explicit Venue & Entrance Model**: Venues configure entrances with typed accessibility requirements (`pathwayClear`, `obstructionFree`, `doorReady`) and explicit camera bindings (`deviceId`, `componentId`).
-2. **Provider-Neutral Evidence Model**: Unified evidence tracking with strict provenance (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`) and deterministic freshness evaluation.
-3. **Multimodal Bedrock Vision Pipeline**: Amazon Bedrock Runtime Converse API interprets Ring image evidence using strict JSON tool schemas (`record_accessibility_observation`).
+1. **Preemptive Event-Driven Trigger**: Ring motion or ding events trigger assurance checks before an accessibility-dependent visitor encounters an obstruction. OpenWay does **NOT** claim or perform continuous video surveillance.
+2. **Explicit Event Correlation**: `EventCorrelator` deterministically maps Ring devices and camera components to configured entrances. Unmapped hardware is rejected (`UNBOUND_DEVICE`).
+3. **Fresh Evidence Acquisition**: `EvidenceAcquisitionService` requests fresh visual evidence using `latest_in_range` surrounding the event timestamp and preserves actual device provenance.
 4. **AI Subordination Invariant**: AI outputs tri-state environmental observations only (`"TRUE" | "FALSE" | "UNKNOWN"`). The AI model **never** determines OpenWay application state (`VERIFIED_RESTORED` vs `INTERRUPTED`).
-5. **Deterministic Assurance State Machine**: Enforces strict transitions (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`).
-6. **Pure Restoration Gatekeeper**: Evaluates 9 mandatory conditions before restoration can be declared (`canDeclareRestored`).
-7. **Durable Persistence & Repositories**: Repository interfaces (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`) with atomic transactional boundaries.
-8. **Append-Only Evidence Timeline**: Chronological operator audit trail recording every state change, observation provenance, and verification event.
+5. **Remediation Task Workflow**: Physical interruptions automatically dispatch actionable remediation tasks (`RemediationTask`) detailing required physical actions.
+6. **Staff Action Model & Boundary**: Staff reporting `COMPLETE` marks physical action done, but **never** restores access. The system transitions to `RECHECKING` and initiates verification.
+7. **Post-Remediation Verification Gate**: `RecheckService` explicitly requests new camera evidence and evaluates the pure deterministic `RestorationGatekeeper` against all 9 verification conditions (`capturedAt >= completedAt`, matching camera, fresh, non-contradictory).
+8. **Event History Reconciliation**: `EventReconciliationService` discovers and idempotently recovers missed Ring events after transient network outages.
+9. **Append-Only Evidence Timeline**: Chronological operator audit trail recording the full operational chain (`RING EVENT → FRESH EVIDENCE → OBSERVATION → ACCESS INTERRUPTED → TASK CREATED → STAFF ACKNOWLEDGED → REMEDIATION REPORTED → VERIFICATION STARTED → FRESH EVIDENCE → VERIFIED RESTORED`).
 
 For in-depth architectural and policy documentation, see:
+- [Proactive Assurance & Remediation Workflow](docs/proactive-assurance.md)
 - [Multimodal Vision Pipeline & Bedrock Integration](docs/vision-pipeline.md)
 - [Assurance State Machine Specification](docs/assurance-state-machine.md)
 - [Evidence & Observation Model](docs/evidence-model.md)

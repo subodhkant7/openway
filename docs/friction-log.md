@@ -40,3 +40,16 @@
 - **Severity**: Low to Medium
 - **Workaround**: Created an adaptive signature parser that strips `sha256=` prefixes before executing timing-safe `crypto.timingSafeEqual` comparison, and implemented an in-memory TTL deduplication cache keyed on `meta.request_id` (fallback to `data.id`).
 - **Actionable Suggestion**: Standardize signature header generation in the Developer Playground to match production specification, and highlight `meta.request_id` prominently in webhook quickstart guides as the authoritative deduplication key.
+
+---
+
+## Friction Entry 4: Multi-Camera Component Attribution & Post-Remediation Verification Windows
+
+- **Date**: 2026-10-06
+- **Tool / API / SDK**: Ring Media Download Endpoint & Multi-Sensor Hardware
+- **Task Attempted**: Correlate a Ring motion event to a specific entrance ramp and explicitly request fresh image evidence for post-remediation assurance.
+- **Expected Result**: A unified device ID maps directly to an image of the monitored entrance, and downloading an image immediately after an event guarantees fresh post-event visual evidence.
+- **Actual Result**: Multi-sensor or dual-camera Ring hardware (e.g. devices with separate ground-facing package cameras and wide-angle entry cameras) can yield images from an unintended component if the component ID is omitted or assumed. Furthermore, media capture timestamps (`capturedAt`) can differ from webhook delivery timestamps, requiring strict temporal validation to prevent stale images from verifying post-remediation state.
+- **Severity**: Medium
+- **Workaround**: Implemented `EventCorrelator` with strict `(deviceId, componentId)` matching, and created `RecheckService` with explicit temporal validation enforcing `capturedAt >= completedAt`.
+- **Actionable Suggestion**: Provide multi-camera component selection samples in the Ring Media API documentation and clarify the relationship between motion event timestamps and available snapshot capture times.

@@ -206,7 +206,7 @@ export class VisionPipelineService {
             entranceId: entrance.id,
             triggerAssessmentId: `assess_${Date.now()}`,
             status: "OPEN",
-            reason: aggregated.explanation,
+            reason: observation.explanation || aggregated.explanation,
             createdAt: nowIso,
           };
           targetState = "ACTION_REQUIRED";
@@ -282,6 +282,7 @@ export class VisionPipelineService {
               entityType: "ASSESSMENT",
               entityId: updatedAssessment.id,
               metadata: {
+                entranceId: entrance.id,
                 previousState: currentState,
                 nextState: "ACTION_REQUIRED",
                 reasonCode: targetReasonCode,
@@ -329,6 +330,7 @@ export class VisionPipelineService {
             entityType: "ASSESSMENT",
             entityId: updatedAssessment.id,
             metadata: {
+              entranceId: entrance.id,
               previousState: currentState,
               nextState: targetState,
               reasonCode: targetReasonCode,

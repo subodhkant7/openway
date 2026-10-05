@@ -68,3 +68,14 @@ Human intervention cannot bypass verification.
 
 ### Rule 4: UNKNOWN is a Valid and Safe State
 When data is missing, stale, conflicting, or unverified, OpenWay transitions to `UNKNOWN`. It never converts uncertainty into a false green "Assured".
+
+### Rule 5: Safety Against False Green
+The system must be more willing to report `UNKNOWN` than to report `VERIFIED_RESTORED` when evidence quality is insufficient.
+* High model confidence + stale evidence &rarr; `UNKNOWN`
+* High model confidence + wrong camera &rarr; `UNKNOWN`
+* High model confidence + contradictory evidence &rarr; `UNKNOWN`
+* Staff completion + no fresh evidence &rarr; `RECHECKING` / `UNKNOWN`
+* Fresh evidence + incomplete required fields &rarr; `UNKNOWN`
+
+### Rule 6: Multi-Camera Safety & Explicit Component Attribution
+Ring media downloads on multi-camera hardware require explicit camera component selection. A device match with a missing or mismatched component ID cannot verify an entrance and is rejected as `WRONG_CAMERA_COMPONENT` &rarr; `UNKNOWN`.

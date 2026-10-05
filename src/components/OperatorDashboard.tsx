@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { RingDevice, RingEvent, RingProviderStatus } from "@/ring/types";
-import { Entrance, AssuranceState, RemediationTask, AuditEvent, AccessibilityRequirements } from "@/domain/types";
+import { Entrance, AssuranceState, RemediationTask, AuditEvent, AccessibilityRequirements, AccessAssessment } from "@/domain/types";
 import { Evidence } from "@/evidence/types";
 import { DetailedVisionObservation } from "@/vision/VisionAnalyzer";
 import { RingConnectionCard } from "./RingConnectionCard";
@@ -22,11 +22,12 @@ export function OperatorDashboard() {
   const [events, setEvents] = useState<RingEvent[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<RingDevice | null>(null);
 
-  // Phase 2 & 3 Domain & Vision States
+  // Phase 2, 3 & 4 Domain & Vision States
   const [entrances, setEntrances] = useState<Entrance[]>([]);
   const [selectedEntrance, setSelectedEntrance] = useState<Entrance | null>(null);
   const [assuranceStatus, setAssuranceStatus] = useState<AssuranceState | "UNCONFIGURED">("AVAILABLE");
   const [activeRemediation, setActiveRemediation] = useState<RemediationTask | null>(null);
+  const [latestAssessment, setLatestAssessment] = useState<AccessAssessment | null>(null);
   const [latestEvidence, setLatestEvidence] = useState<Evidence | null>(null);
   const [latestObservation, setLatestObservation] = useState<DetailedVisionObservation | null>(null);
   const [timeline, setTimeline] = useState<AuditEvent[]>([]);
@@ -51,6 +52,7 @@ export function OperatorDashboard() {
         const assureData = await assureRes.json();
         setAssuranceStatus(assureData.state);
         setActiveRemediation(assureData.activeRemediation || null);
+        setLatestAssessment(assureData.currentAssessment || null);
         setLatestEvidence(assureData.latestEvidence || null);
         if (assureData.latestObservation) {
           setLatestObservation(assureData.latestObservation);
@@ -146,14 +148,22 @@ export function OperatorDashboard() {
   const handleRunVerificationCheck = async () => {
     if (!selectedEntrance) return;
     try {
-      await fetch("/api/simulator/scenario", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          scenario: "SCENARIO_4_FRESH_CLEAR_EVIDENCE",
-          entranceId: selectedEntrance.id,
-        }),
-      });
+      if (activeRemediation?.id) {
+        await fetch(`/api/remediation/${activeRemediation.id}/verify`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ maxAttempts: 1 }),
+        });
+      } else {
+        await fetch("/api/simulator/scenario", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario: "RUN_VERIFICATION",
+            entranceId: selectedEntrance.id,
+          }),
+        });
+      }
       await loadAssuranceData(selectedEntrance.id);
     } catch (err) {
       console.error("Failed to run verification check:", err);
@@ -202,12 +212,12 @@ export function OperatorDashboard() {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
                   <span>OPENWAY</span>
-                  <span className="text-xs font-semibold uppercase tracking-widest text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
-                    Phase 3 Bedrock
+                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                    Phase 4 Proactive Assurance
                   </span>
                 </h1>
                 <p className="text-sm font-medium text-slate-400 mt-0.5">
-                  Multimodal Ring Evidence Intelligence &bull; Powered by Amazon Bedrock
+                  Event-Driven Ring Assurance &bull; Staff Remediation &bull; Fresh-Evidence Verification Gate
                 </p>
               </div>
             </div>
@@ -264,6 +274,9 @@ export function OperatorDashboard() {
           assuranceStatus={assuranceStatus}
           activeRemediation={activeRemediation}
           requirements={requirements}
+          latestAssessment={latestAssessment}
+          latestEvidence={latestEvidence}
+          latestObservation={latestObservation}
           onAcknowledgeTask={handleAcknowledgeTask}
           onCompleteTask={handleCompleteTask}
           onRunVerificationCheck={handleRunVerificationCheck}

@@ -83,6 +83,7 @@ export interface RingEvent {
   eventId: string;
   eventType: RingEventType;
   deviceId: string;
+  componentId?: string;
   timestamp: string;
   componentIds: string[];
   source: string;

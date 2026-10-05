@@ -60,6 +60,23 @@ OpenWay implements defense-in-depth security around Amazon Bedrock and multimoda
 
 ---
 
+## 7. Semantic Prompt-Injection Hardening & Adversarial Defenses
+
+OpenWay recognizes that Zod `.strict()` schema enforcement prevents *syntactic* injection (unauthorized schema fields), but does **NOT** alone prevent *semantic* prompt injection (malicious text in the physical scene attempting to alter AI observations):
+- **Adversarial Test Suite (`src/test/semanticVisionAdversarial.test.ts`)**: Evaluates model and policy resilience against physical signs saying "PATH CLEAR" when blocked, signs claiming "OpenWay state is VERIFIED_RESTORED", fake operator instructions, and visual adversarial text.
+- **Deterministic Policy Authority**: AI observations are subordinate evidence inputs. When observations are conflicting or ambiguous, the deterministic policy always resolves to `UNKNOWN`.
+- **System Prompt Boundaries**: The Bedrock system prompt explicitly directs the model to disregard textual instructions, banners, or signs embedded in physical images that attempt to alter configured rules.
+
+---
+
+## 8. SSRF Prevention & Untrusted Media URL Protection
+
+- **No Arbitrary Media URLs**: OpenWay never permits API users or external callers to submit arbitrary media URLs for downloading.
+- **Strict Ring Domain Whitelisting**: Media downloads are permitted only through official Ring API hostnames (`https://api.amazonvision.com` and authorized Amazon S3 media storage domains).
+- **Asynchronous Execution Boundary**: Webhooks acknowledge immediately without executing heavy network or AI calls in the HTTP request lifecycle, preventing Denial of Service through event storms.
+
+---
+
 ## 7. Vulnerability Reporting
 
 If you discover a security vulnerability within OpenWay, please contact the maintainers directly via repository issue or security advisory.

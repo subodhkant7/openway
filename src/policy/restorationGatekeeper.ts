@@ -1,6 +1,8 @@
 import { evaluateEvidenceFreshness } from "@/evidence/freshness";
 import { RestorationGateParams, GatekeeperResult } from "./types";
 
+export type RestorationGatekeeperResult = GatekeeperResult;
+
 /**
  * Pure Deterministic Restoration Gatekeeper
  *

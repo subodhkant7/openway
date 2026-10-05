@@ -143,3 +143,18 @@ export interface CameraBinding {
 ```
 
 Evidence from an unassociated camera (e.g. a rear loading dock camera) will **never** restore an entrance ramp, preventing cross-camera false verifications.
+
+---
+
+## Phase 4 Evidence Acquisition & Verification Window
+
+In Phase 4, `EvidenceAcquisitionService` (`src/evidence/evidenceAcquisition.ts`) implements explicit media acquisition:
+* **Endpoints**: Calls Ring media download endpoint supporting `latest_in_range` (surrounding event time) and `at_timestamp`.
+* **Metadata Tracking**: Records `requestedAt`, `capturedAt`, `receivedAt`, `mediaOrigin`, and `requestId`.
+* **In-Memory Buffers**: Image binary bytes are processed in transient server memory; pre-signed URLs are never leaked to client browsers.
+* **Deterministic Verification Window**:
+  ```text
+  verificationStart = remediation.completedAt
+  verificationEnd   = now
+  ```
+  Evidence captured before remediation completion (`capturedAt < completedAt`) is strictly excluded. Stale, missing, or contradictory evidence within this window evaluates to `UNKNOWN`.

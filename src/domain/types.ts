@@ -93,6 +93,7 @@ export interface RemediationTask {
   acknowledgedAt?: string;
   completedAt?: string;
   completedBy?: string;
+  assignedTo?: string;
 }
 
 /**
@@ -107,8 +108,8 @@ export interface AccessAssessment {
   evidenceIds: string[];
   observationIds: string[];
   policyVersion: string;
-  assessedAt: string;
   previousAssessmentId?: string;
+  assessedAt: string;
 }
 
 /**
@@ -116,6 +117,7 @@ export interface AccessAssessment {
  */
 export type AuditEventType =
   | "RING_EVENT_RECEIVED"
+  | "RING_EVENT_INGESTED"
   | "EVIDENCE_CAPTURED"
   | "OBSERVATION_CREATED"
   | "ACCESS_INTERRUPTED"
@@ -123,6 +125,7 @@ export type AuditEventType =
   | "TASK_ACKNOWLEDGED"
   | "TASK_COMPLETED"
   | "VERIFICATION_STARTED"
+  | "VERIFICATION_INITIATED"
   | "ACCESS_VERIFIED_RESTORED"
   | "ASSESSMENT_UNKNOWN"
   | "WRONG_CAMERA_REJECTED";

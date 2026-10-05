@@ -43,19 +43,38 @@ export function EvidenceTimeline({ timeline, loading, onRefresh }: EvidenceTimel
         return {
           icon: <Clock className="h-4 w-4 text-sky-400" aria-hidden="true" />,
           badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-          title: "TASK ACKNOWLEDGED BY STAFF",
+          title: "STAFF ACKNOWLEDGED",
         };
       case "TASK_COMPLETED":
         return {
           icon: <UserCheck className="h-4 w-4 text-indigo-400" aria-hidden="true" />,
           badgeClass: "bg-indigo-500/15 text-indigo-300 border-indigo-500/30",
-          title: "STAFF REPORTED COMPLETE",
+          title: "REMEDIATION REPORTED",
         };
       case "VERIFICATION_STARTED":
+      case "VERIFICATION_INITIATED":
         return {
           icon: <RefreshCw className="h-4 w-4 text-sky-400 animate-spin" aria-hidden="true" />,
           badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/30",
-          title: "VERIFICATION INITIATED",
+          title: "VERIFICATION STARTED",
+        };
+      case "RING_EVENT_RECEIVED":
+        return {
+          icon: <Clock className="h-4 w-4 text-purple-400" aria-hidden="true" />,
+          badgeClass: "bg-purple-500/15 text-purple-300 border-purple-500/30",
+          title: "RING EVENT",
+        };
+      case "EVIDENCE_CAPTURED":
+        return {
+          icon: <Eye className="h-4 w-4 text-sky-400" aria-hidden="true" />,
+          badgeClass: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+          title: "FRESH EVIDENCE",
+        };
+      case "OBSERVATION_CREATED":
+        return {
+          icon: <Eye className="h-4 w-4 text-teal-400" aria-hidden="true" />,
+          badgeClass: "bg-teal-500/15 text-teal-300 border-teal-500/30",
+          title: "OBSERVATION",
         };
       case "ASSESSMENT_UNKNOWN":
         return {
@@ -69,14 +88,11 @@ export function EvidenceTimeline({ timeline, loading, onRefresh }: EvidenceTimel
           badgeClass: "bg-rose-500/20 text-rose-300 border-rose-500/40",
           title: "UNBOUND CAMERA REJECTED",
         };
-      case "OBSERVATION_CREATED":
-      case "EVIDENCE_CAPTURED":
-      case "RING_EVENT_RECEIVED":
       default:
         return {
           icon: <Eye className="h-4 w-4 text-sky-400" aria-hidden="true" />,
           badgeClass: "bg-sky-500/10 text-sky-300 border-sky-500/20",
-          title: type.replace(/_/g, " "),
+          title: (type as string).replace(/_/g, " "),
         };
     }
   };

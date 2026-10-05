@@ -56,7 +56,25 @@ The state machine explicitly rejects:
 2. `INTERRUPTED` &rarr; `VERIFIED_RESTORED`: Bypassing remediation and rechecking is forbidden.
 3. `ACTION_REQUIRED` &rarr; `VERIFIED_RESTORED`: Staff clicking "Fixed" or reporting a task complete **never** directly restores access. It moves the system to `RECHECKING`. Only fresh post-remediation evidence evaluated by deterministic policy can produce `VERIFIED_RESTORED`.
 4. Arbitrary API Client Override: External API callers cannot directly inject `VERIFIED_RESTORED` without submitting valid, fresh evidence.
-5. AI Model Direct State Transition: The vision model (Amazon Bedrock or simulator) has **NO** ability to set application state. The output schema is strictly constrained to tri-state physical observations (`pathwayClear`, `obstructionPresent`, `doorReady`). Any attempt by a model to return a `state` field is rejected by Zod `.strict()` schema validation. The state machine transitions only via deterministic policy evaluation.
+5. AI Model Direct State Transition: The vision model (Amazon Bedrock or simulator) has **NO** ability to set application state. The output schema is strictly constrained to tri-state physical observations (`pathwayClear`, `obstructionPresent`, `doorReady`). Any attempt by a model to return a `state` field is rejected by Zod `.strict()` schema validation. ---
+
+## Phase 4 Proactive Trigger & Bounded Recheck Outcomes
+
+In Phase 4, the state machine is driven by discrete Ring events (preemptive initial detection) and explicit bounded rechecks:
+
+### Initial Detection (Preemptive)
+1. Ring motion or ding event is ingested via webhook.
+2. Fresh evidence is acquired; vision analysis evaluates physical scene.
+3. If obstruction is present, state transitions: `AVAILABLE → INTERRUPTED → ACTION_REQUIRED`.
+4. Visitor arrival is **not** required. Obstructions are detected and queued for remediation proactively.
+
+### Recheck Outcomes
+After staff reports physical completion (`TASK_COMPLETED`), the system enters `RECHECKING` and explicitly requests fresh evidence (`capturedAt >= completedAt`):
+* **Fresh clear evidence**: All 9 gatekeeper checks pass &rarr; `VERIFIED_RESTORED`.
+* **Fresh blocked evidence**: Physical obstruction still observed &rarr; `ACTION_REQUIRED`.
+* **Evidence unavailable**: Media download timeout or API error &rarr; `UNKNOWN` (no false green).
+* **Stale evidence**: Evidence timestamp predates remediation completion &rarr; `UNKNOWN`.
+* **Contradictory evidence**: Conflicting fresh observations in window &rarr; `UNKNOWN`.
 
 ---
 
