@@ -3,9 +3,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { RingDevice, RingEvent, RingProviderStatus } from "@/ring/types";
 import { Entrance, AssuranceState, RemediationTask, AuditEvent, AccessibilityRequirements } from "@/domain/types";
+import { Evidence } from "@/evidence/types";
+import { DetailedVisionObservation } from "@/vision/VisionAnalyzer";
 import { RingConnectionCard } from "./RingConnectionCard";
 import { EntranceAssuranceCard } from "./EntranceAssuranceCard";
 import { EvidenceTimeline } from "./EvidenceTimeline";
+import { EvidenceAnalysisPanel } from "./EvidenceAnalysisPanel";
 import { DeviceList } from "./DeviceList";
 import { ObservationFeed } from "./ObservationFeed";
 import { PrivacyNotice } from "./PrivacyNotice";
@@ -19,11 +22,13 @@ export function OperatorDashboard() {
   const [events, setEvents] = useState<RingEvent[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<RingDevice | null>(null);
 
-  // Phase 2 Domain States
+  // Phase 2 & 3 Domain & Vision States
   const [entrances, setEntrances] = useState<Entrance[]>([]);
   const [selectedEntrance, setSelectedEntrance] = useState<Entrance | null>(null);
   const [assuranceStatus, setAssuranceStatus] = useState<AssuranceState | "UNCONFIGURED">("AVAILABLE");
   const [activeRemediation, setActiveRemediation] = useState<RemediationTask | null>(null);
+  const [latestEvidence, setLatestEvidence] = useState<Evidence | null>(null);
+  const [latestObservation, setLatestObservation] = useState<DetailedVisionObservation | null>(null);
   const [timeline, setTimeline] = useState<AuditEvent[]>([]);
   const [requirements, setRequirements] = useState<AccessibilityRequirements>({
     pathwayClear: true,
@@ -32,8 +37,9 @@ export function OperatorDashboard() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [visionLoading, setVisionLoading] = useState(false);
 
-  // Fetch entrance assurance and timeline
+  // Fetch entrance assurance, latest evidence, observation, and timeline
   const loadAssuranceData = useCallback(async (entranceId: string) => {
     try {
       const [assureRes, timeRes] = await Promise.all([
@@ -45,6 +51,10 @@ export function OperatorDashboard() {
         const assureData = await assureRes.json();
         setAssuranceStatus(assureData.state);
         setActiveRemediation(assureData.activeRemediation || null);
+        setLatestEvidence(assureData.latestEvidence || null);
+        if (assureData.latestObservation) {
+          setLatestObservation(assureData.latestObservation);
+        }
         if (assureData.requirements) setRequirements(assureData.requirements);
       }
 
@@ -150,6 +160,30 @@ export function OperatorDashboard() {
     }
   };
 
+  const handleRunVisionAnalysis = async () => {
+    if (!selectedEntrance) return;
+    setVisionLoading(true);
+    try {
+      const res = await fetch("/api/vision/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entranceId: selectedEntrance.id,
+          analyzerType: activeMode === "simulator" ? "simulator" : "bedrock",
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.result) {
+        setLatestObservation(data.result.observation);
+        await loadAssuranceData(selectedEntrance.id);
+      }
+    } catch (err) {
+      console.error("Failed to run vision analysis:", err);
+    } finally {
+      setVisionLoading(false);
+    }
+  };
+
   const handleSelectEntrance = async (entrance: Entrance) => {
     setSelectedEntrance(entrance);
     await loadAssuranceData(entrance.id);
@@ -168,12 +202,12 @@ export function OperatorDashboard() {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
                   <span>OPENWAY</span>
-                  <span className="text-xs font-semibold uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
-                    Phase 2 Assurance
+                  <span className="text-xs font-semibold uppercase tracking-widest text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                    Phase 3 Bedrock
                   </span>
                 </h1>
                 <p className="text-sm font-medium text-slate-400 mt-0.5">
-                  Real-Time Accessibility Assurance Domain &bull; Powered by Ring
+                  Multimodal Ring Evidence Intelligence &bull; Powered by Amazon Bedrock
                 </p>
               </div>
             </div>
@@ -235,6 +269,14 @@ export function OperatorDashboard() {
           onRunVerificationCheck={handleRunVerificationCheck}
         />
 
+        {/* Section: Multimodal Vision Analysis Panel (AWS Bedrock) */}
+        <EvidenceAnalysisPanel
+          latestObservation={latestObservation}
+          latestEvidence={latestEvidence}
+          loading={visionLoading}
+          onRunAnalysis={handleRunVisionAnalysis}
+        />
+
         {/* Grid layout for Timeline & Devices */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-7 space-y-6">
@@ -275,10 +317,11 @@ export function OperatorDashboard() {
         {/* Footer */}
         <footer className="mt-12 border-t border-slate-800/80 pt-6 text-xs text-slate-500 flex flex-wrap items-center justify-between gap-4">
           <p>
-            OpenWay &bull; Real-time accessibility assurance for businesses &bull; Built for Amazon Ring
+            OpenWay &bull; Real-time accessibility assurance for businesses &bull; Built for Amazon Ring &amp; AWS Bedrock
           </p>
           <div className="flex items-center gap-4">
             <span>Deterministic State Machine</span>
+            <span>Multimodal Vision Intelligence</span>
             <span>WCAG 2.2 AA Target</span>
             <span>MIT License</span>
           </div>

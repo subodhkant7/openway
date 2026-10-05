@@ -59,9 +59,18 @@ OpenWay is built on an unwavering privacy principle:
 
 ---
 
-## 4. Phase 2 Engineering Deliverables
+## 4. AWS Builder Mini-Challenge & Phase 3 Deliverables
 
-- **96 Automated Tests across 13 Suites**: High branch coverage across state machine transitions, pure restoration gatekeeper, property invariants, temporal logic, idempotency, repositories, and domain API routes.
+### AWS Builder Mini-Challenge: Meaningful Amazon Bedrock Integration
+OpenWay incorporates Amazon Bedrock as an environmental sensory interpreter:
+* **SDK**: Official `@aws-sdk/client-bedrock-runtime` using the Converse API (`ConverseCommand`).
+* **Multimodal Model**: Configured with `amazon.nova-lite-v1:0` (Amazon Nova Lite multimodal vision).
+* **Platform-Enforced Structured Output**: Uses Converse tool calling (`record_accessibility_observation`) with rigid JSON Schema and Zod `.strict()` output validation.
+* **Privacy & Boundary Invariants**: Strictly prohibits face recognition, identity profiling, demographic inference, and disability diagnosis. AI model outputs only tri-state physical conditions (`"TRUE" | "FALSE" | "UNKNOWN"`). The AI model **never** decides OpenWay assurance state (`VERIFIED_RESTORED` vs `INTERRUPTED`).
+* **In-Memory Image Security**: Ring image bytes are processed strictly in server RAM and piped over TLS to Bedrock. Zero public filesystem leakage and zero pre-signed URL leakage to browsers.
+
+### Engineering Metrics
+- **136 Automated Tests across 16 Suites**: High branch coverage across Bedrock vision adapter, prompts, JSON tool schema, error mapping (401, 403, 429, 503, timeout), adversarial vision scenarios (injection, darkness, glare, crop, angle mismatch), state machine transitions, pure restoration gatekeeper, and domain API routes.
 - **Strict TypeScript**: 100% typechecked with strict null checks (`tsc --noEmit` exits with 0).
 - **ESLint & Web Vitals**: Zero lint errors or warnings (`next lint` exits with 0).
 - **Production Build**: Next.js App Router optimized static and dynamic bundle compilation (`next build` exits with 0).

@@ -20,6 +20,8 @@ export async function GET(
     const activeRemediation = await storage.remediations.findActiveByEntranceId(entranceId);
     const recentEvidence = await storage.evidence.listByEntranceId(entranceId, 1);
     const latestEvidence = recentEvidence[0] || null;
+    const recentObservations = await storage.observations.listByEntranceId(entranceId, 1);
+    const latestObservation = recentObservations[0] || null;
 
     return NextResponse.json({
       entrance,
@@ -27,6 +29,7 @@ export async function GET(
       currentAssessment,
       activeRemediation,
       latestEvidence,
+      latestObservation,
       requirements: entrance.requirements,
     });
   } catch (error) {

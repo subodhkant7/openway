@@ -112,12 +112,35 @@ OpenWay does not optimize only for a happy-path demo. Demonstrate safe handling 
 
 ---
 
+### 6. Demonstrate Phase 3 Multimodal Vision Analysis
+
+Point out the dedicated **Evidence Analysis** panel on the operator dashboard:
+
+1. **Simulated vs. Bedrock Inference**:
+   - The headline clearly displays the analyzed engine: `AMAZON BEDROCK` (when using AWS) or `SIMULATOR VISION` (when using local test harness).
+   - Provenance tag shows `OFFICIAL RING` or `SIMULATED LOCAL`.
+2. **Structured Environmental Conditions**:
+   - **Pathway**: `CLEAR` or `BLOCKED`
+   - **Obstruction**: `ABSENT` or `PRESENT`
+   - **Door**: `READY` or `BLOCKED`
+   - **Evidence Quality**: `SUFFICIENT` or `INSUFFICIENT`
+3. **Observed Features**:
+   - Shows recognized physical elements: e.g. `["accessible ramp", "concrete path", "entrance doorway"]` or `["delivery box", "handrail"]`.
+4. **Factual Explanation**:
+   - Evidence-oriented description without legal/ADA claims.
+5. **Bedrock Unavailable / Degraded Input**:
+   - In case of network timeout, darkness, or occluded lens, the panel displays:
+     > `EVIDENCE INSUFFICIENT — Accessible pathway is not visible. OpenWay cannot safely assess this observation.`
+
+---
+
 ## 3-Minute Demo Summary
 
 | Phase Step | State | Key Takeaway |
 | :--- | :--- | :--- |
 | **Baseline** | `AVAILABLE` | Venue entrance explicitly bound to Ring hardware. |
 | **Interruption** | `ACTION_REQUIRED` | Obstruction detected; concrete staff remediation task opened. |
+| **Multimodal AI**| Tri-State Observation | Bedrock observes physical conditions (`"TRUE" \| "FALSE" \| "UNKNOWN"`), not state. |
 | **Human Claim** | `RECHECKING` | Staff claims fixed &ne; verified fixed. System demands fresh proof. |
 | **Restoration** | `VERIFIED_RESTORED` | Only fresh post-remediation evidence unlocks restoration. |
 | **Failure Cases** | `UNKNOWN` / `REJECTED` | Stale data, contradictions, and wrong cameras never compromise safety. |

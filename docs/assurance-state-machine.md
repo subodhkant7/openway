@@ -56,6 +56,7 @@ The state machine explicitly rejects:
 2. `INTERRUPTED` &rarr; `VERIFIED_RESTORED`: Bypassing remediation and rechecking is forbidden.
 3. `ACTION_REQUIRED` &rarr; `VERIFIED_RESTORED`: Staff clicking "Fixed" or reporting a task complete **never** directly restores access. It moves the system to `RECHECKING`. Only fresh post-remediation evidence evaluated by deterministic policy can produce `VERIFIED_RESTORED`.
 4. Arbitrary API Client Override: External API callers cannot directly inject `VERIFIED_RESTORED` without submitting valid, fresh evidence.
+5. AI Model Direct State Transition: The vision model (Amazon Bedrock or simulator) has **NO** ability to set application state. The output schema is strictly constrained to tri-state physical observations (`pathwayClear`, `obstructionPresent`, `doorReady`). Any attempt by a model to return a `state` field is rejected by Zod `.strict()` schema validation. The state machine transitions only via deterministic policy evaluation.
 
 ---
 

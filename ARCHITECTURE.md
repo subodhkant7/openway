@@ -109,7 +109,17 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `repositories.ts`: Clean repository contracts decoupling the domain from storage engines (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `ObservationRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`).
 - `memoryStore.ts`: Transactional storage provider featuring atomic multi-entity transactions with snapshot-based rollback on failure.
 
-### 6. Ring Integration Layer (`src/ring/`)
+### 6. Vision Layer (`src/vision/`)
+- `VisionAnalyzer.ts`: Provider-neutral vision interface (`VisionAnalyzer`, `VisionAnalysisInput`, `DetailedVisionObservation`). Keeps Ring != Vision != Policy.
+- `BedrockVisionAnalyzer.ts`: Implements multimodal analysis using AWS Bedrock Runtime Converse API (`amazon.nova-lite-v1:0`). Enforces platform-level tool calling JSON schemas (`record_accessibility_observation`) and Zod `.strict()` output validation.
+- `SimulatorVisionAnalyzer.ts`: Deterministic simulated vision engine supporting CLEAR, BLOCKED, UNCERTAIN, and CONTRADICTORY scene evaluation.
+- `VisionPipelineService.ts`: Pipeline coordinator implementing deduplication/cost-control idempotency keys, observation persistence, audit emission, and deterministic policy transition dispatch.
+- `schemas.ts`: Strict Zod schema enforcing explicit tri-state enumerations (`"TRUE" | "FALSE" | "UNKNOWN"`) and rejecting extra fields.
+- `prompts.ts`: Narrowly scoped system prompt prohibiting facial recognition, identity profiling, demographic inference, disability assessment, legal compliance claims, and state determination. Builds dynamic user prompt from configured `AccessibilityRequirements`.
+- `errors.ts`: Maps upstream AWS Bedrock exceptions (401, 403, 429, 503, timeout) into typed `VisionAnalysisError` instances.
+- `modelConfig.ts`: Environment-driven configuration (`AWS_REGION`, `BEDROCK_MODEL_ID`, `BEDROCK_GUARDRAIL_ID`, `BEDROCK_GUARDRAIL_VERSION`).
+
+### 7. Ring Integration Layer (`src/ring/`)
 - Server-side client, JSON:API compound document parser, media download handler, and webhook HMAC-SHA256 signature verification engine.
 
 ---

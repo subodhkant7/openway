@@ -90,7 +90,28 @@ export interface AccessibilityObservation {
   analyzerVersion: string;
   explanation: string;
 }
+
+export interface DetailedVisionObservation extends AccessibilityObservation {
+  evidenceQuality: "SUFFICIENT" | "INSUFFICIENT";
+  observedFeatures: string[];
+  modelId?: string;
+  modelRegion?: string;
+  isSimulated: boolean;
+  timingMs?: {
+    totalMs: number;
+    inferenceMs?: number;
+  };
+}
 ```
+
+### Phase 3 Bedrock Integration Details
+
+For observations produced by Amazon Bedrock:
+* `analyzer`: `"amazon-bedrock"`
+* `modelId`: `"amazon.nova-lite-v1:0"` (or configured ID)
+* `modelRegion`: e.g. `"us-east-1"`
+* `isSimulated`: dynamically tracks whether the source Ring evidence was `SIMULATED_LOCAL` vs `OFFICIAL_RING`.
+* `evidenceQuality`: deterministic gate (`SUFFICIENT` vs `INSUFFICIENT`). If lighting is too dark, glare blinds the sensor, or the entrance is occluded, `evidenceQuality = "INSUFFICIENT"` and conditions resolve to `"UNKNOWN"`.
 
 ---
 

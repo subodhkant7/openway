@@ -15,7 +15,8 @@ OpenWay enforces strict architectural boundaries in code and policy. The followi
 3. **No Disability Inference**: OpenWay never infers, categorizes, or records medical conditions, mobility impairments, or protected personal traits.
 4. **No Visitor Profiling**: No behavioral profiling, demographic analysis, or customer tracking.
 5. **No Cross-Camera Tracking**: OpenWay evaluates each entrance camera independently within its local spatial boundary; it does not correlate person movements across camera networks.
-6. **No Marketing Exploitation**: Video telemetry and snapshots are strictly prohibited from being monetized, shared with advertisers, or used for behavioral ad targeting.
+7. **No AI Identity or Disability Inference**: System prompts and Bedrock tool schemas strictly prohibit the vision model from analyzing people, identifying individuals, or inferring disability, age, gender, race, or protected characteristics.
+8. **Schema-Enforced Privacy**: The observation schema (`VisionAnalysisOutputSchema`) defines only physical environmental properties (`pathwayClear`, `obstructionPresent`, `doorReady`, `evidenceQuality`, `observedFeatures`, `explanation`). It is structurally impossible to persist identity or demographic traits.
 
 ---
 

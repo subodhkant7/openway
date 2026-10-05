@@ -49,6 +49,17 @@ OpenWay implements a specialized log sanitization layer (`src/ring/errors.ts:san
 
 ---
 
-## 6. Vulnerability Reporting
+## 6. Bedrock AI Security & Media Isolation
+
+OpenWay implements defense-in-depth security around Amazon Bedrock and multimodal image analysis:
+- **Zero Public Media Leakage**: Camera snapshots are processed strictly in server memory buffers (`Uint8Array`) and piped directly to Bedrock Converse API over TLS. Snapshots are **never** saved to a public static web directory (`public/`), and Ring pre-signed URLs are never leaked to client browsers.
+- **AWS Credential Isolation**: AWS credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_SESSION_TOKEN`) exist only in server environment variables and are completely inaccessible to frontend code.
+- **Strict Schema Enforcement (.strict())**: The Bedrock output schema uses Zod `.strict()` to reject any unrecognized properties, preventing prompt injection attacks from attempting to manipulate internal state.
+- **Bedrock Guardrail Integration**: Supports optional Amazon Bedrock Guardrails (`BEDROCK_GUARDRAIL_ID`, `BEDROCK_GUARDRAIL_VERSION`) to enforce enterprise privacy and content filtering.
+- **Cost & Rate Control**: In-memory idempotency caching on deterministic processing keys (`provider_eventId_evidenceId_version`) prevents duplicate inference calls and denies continuous streaming abuse.
+
+---
+
+## 7. Vulnerability Reporting
 
 If you discover a security vulnerability within OpenWay, please contact the maintainers directly via repository issue or security advisory.

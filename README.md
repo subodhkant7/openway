@@ -82,7 +82,7 @@ All Ring credentials remain strictly server-side and are **never exposed to clie
 # 1. Install dependencies
 npm install
 
-# 2. Run full test suite (96 tests across 13 suites)
+# 2. Run full test suite (136 tests across 16 suites)
 npm run test
 
 # 3. Verify TypeScript type safety
@@ -115,6 +115,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. **Webhook Verification**:
    - Webhook endpoint is hosted at `POST /api/ring/webhook`.
    - Incoming payloads require an HMAC-SHA256 signature matching `RING_WEBHOOK_SECRET` in the `X-Signature` header.
+4. **Multimodal Bedrock Vision Analysis**:
+   - Analyzes Ring camera images in server memory using Amazon Bedrock Runtime Converse API (`amazon.nova-lite-v1:0`).
+   - Platform-enforced structured JSON output enforces tri-state values (`"TRUE" | "FALSE" | "UNKNOWN"`).
+   - Validated against Zod `.strict()` schema before domain entry.
 
 ---
 
@@ -127,23 +131,26 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | **Capabilities** | Live capabilities via `GET /v1/devices/{id}/capabilities` or compound document | Full 4-capability simulation |
 | **Image Evidence** | `POST /v1/devices/{id}/media/image/download` | Synthetic accessible ramp perspective SVG labeled `SIMULATED` |
 | **Webhooks** | Real Ring HMAC-signed webhook delivery (v1.1 schema) | Synthetic event simulation dispatch |
+| **Vision Inference** | Amazon Bedrock (`amazon.nova-lite-v1:0`) | `SimulatorVisionAnalyzer` or Bedrock |
 | **UI Badge** | `CONNECTED (REAL RING)` / `RING LIVE TELEMETRY` | `SIMULATED` / `SIMULATED LOCAL EVENT` |
 
 ---
 
-## 8. Phase 2 Assurance Capabilities
+## 8. Phase 3 Multimodal Vision & Assurance Architecture
 
-OpenWay separates hardware telemetry from accessibility assurance business policy:
+OpenWay separates hardware telemetry and AI interpretation from accessibility assurance business policy:
 
 1. **Explicit Venue & Entrance Model**: Venues configure entrances with typed accessibility requirements (`pathwayClear`, `obstructionFree`, `doorReady`) and explicit camera bindings (`deviceId`, `componentId`).
 2. **Provider-Neutral Evidence Model**: Unified evidence tracking with strict provenance (`OFFICIAL_RING`, `SIMULATED_LOCAL`, `OPENWAY_DERIVED`) and deterministic freshness evaluation.
-3. **Structured Tri-State Observations**: Computer vision and rules output `"TRUE" | "FALSE" | "UNKNOWN"` (never raw state decisions).
-4. **Deterministic Assurance State Machine**: Enforces strict transitions (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`).
-5. **Pure Restoration Gatekeeper**: Evaluates 9 mandatory conditions before restoration can be declared (`canDeclareRestored`).
-6. **Durable Persistence & Repositories**: Repository interfaces (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`) with atomic transactional boundaries.
-7. **Append-Only Evidence Timeline**: Chronological operator audit trail recording every state change and evidence verification.
+3. **Multimodal Bedrock Vision Pipeline**: Amazon Bedrock Runtime Converse API interprets Ring image evidence using strict JSON tool schemas (`record_accessibility_observation`).
+4. **AI Subordination Invariant**: AI outputs tri-state environmental observations only (`"TRUE" | "FALSE" | "UNKNOWN"`). The AI model **never** determines OpenWay application state (`VERIFIED_RESTORED` vs `INTERRUPTED`).
+5. **Deterministic Assurance State Machine**: Enforces strict transitions (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`).
+6. **Pure Restoration Gatekeeper**: Evaluates 9 mandatory conditions before restoration can be declared (`canDeclareRestored`).
+7. **Durable Persistence & Repositories**: Repository interfaces (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`) with atomic transactional boundaries.
+8. **Append-Only Evidence Timeline**: Chronological operator audit trail recording every state change, observation provenance, and verification event.
 
 For in-depth architectural and policy documentation, see:
+- [Multimodal Vision Pipeline & Bedrock Integration](docs/vision-pipeline.md)
 - [Assurance State Machine Specification](docs/assurance-state-machine.md)
 - [Evidence & Observation Model](docs/evidence-model.md)
 - [Verification Invariants & Core Principles](docs/verification-invariants.md)
