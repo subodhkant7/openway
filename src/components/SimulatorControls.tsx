@@ -54,6 +54,31 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
     }
   };
 
+  const resetDemo = async () => {
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/demo/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entranceId: selectedEntranceId || "entrance_side_accessible",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFeedback("Demo reset cleanly: Entrance restored to initial baseline AVAILABLE state.");
+        onTriggerAction();
+      } else {
+        setFeedback(`Error resetting demo: ${data.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      setFeedback(`Failed to reset demo: ${err instanceof Error ? err.message : "Network error"}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section
       aria-labelledby="simulator-controls-heading"
@@ -66,16 +91,27 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
           </div>
           <div>
             <h2 id="simulator-controls-heading" className="text-sm font-bold text-amber-300">
-              Phase 5 Verified Assurance Demo Workbench
+              Phase 6 Judge Demo &amp; Assurance Workbench
             </h2>
             <p className="text-[11px] text-amber-400/80">
-              Deterministic verification hardening, temporal consistency, and live demo proof
+              Durable cloud persistence, tenant isolation, and deterministic verification proof
             </p>
           </div>
         </div>
-        <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/40">
-          HARDENED VERIFICATION
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={loading}
+            onClick={resetDemo}
+            className="rounded bg-slate-800/80 hover:bg-slate-700/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200 border border-slate-600/50 transition disabled:opacity-50"
+            title="Reset demo tenant to baseline AVAILABLE state"
+          >
+            Reset Demo Narrative
+          </button>
+          <span className="rounded bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/40">
+            AWS PERSISTENT DEMO
+          </span>
+        </div>
       </div>
 
       {/* Primary One-Click Demo Story Sequence */}

@@ -13,6 +13,7 @@ export * from "./RingPlaygroundProvider";
 export * from "./RingApiProvider";
 export * from "./RingSimulatorProvider";
 export * from "./webhook";
+export * from "./accountLinking";
 
 let cachedProvider: RingProvider | null = null;
 let currentMode: string | null = null;

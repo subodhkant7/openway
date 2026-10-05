@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runSimulatorScenario, SimulatorScenarioName } from "@/workflow/simulatorWorkflow";
+import { checkRateLimit } from "@/lib/rateLimit";
+import { DEMO_IDS } from "@/persistence/bootstrap";
 
 const ScenarioRequestSchema = z.object({
   scenario: z.enum([
@@ -29,6 +31,28 @@ const ScenarioRequestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  // 1. Rate Limiting Protection (Max 30 scenarios per minute per client)
+  const clientIp = request.headers.get("x-forwarded-for") || "local_demo_client";
+  const rateLimit = checkRateLimit(`scenario_${clientIp}`, {
+    windowMs: 60000,
+    maxRequests: 30,
+  });
+
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Rate limit exceeded for simulation workbench. Please slow down.",
+        retryAfterMs: rateLimit.resetMs,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": Math.ceil(rateLimit.resetMs / 1000).toString(),
+        },
+      }
+    );
+  }
+
   try {
     const body = await request.json();
     const parsed = ScenarioRequestSchema.safeParse(body);
@@ -40,16 +64,30 @@ export async function POST(request: Request) {
       );
     }
 
+    // 2. Demo Tenant Scope Guard: In public/demo mode, only allow demo entrance manipulation
+    const targetEntranceId = parsed.data.entranceId || DEMO_IDS.ENTRANCE_ID;
+    if (parsed.data.entranceId && parsed.data.entranceId !== DEMO_IDS.ENTRANCE_ID) {
+      return NextResponse.json(
+        {
+          error: "Permission denied: Simulation scenarios are restricted to the demo tenant.",
+          allowedEntranceId: DEMO_IDS.ENTRANCE_ID,
+        },
+        { status: 403 }
+      );
+    }
+
     const result = await runSimulatorScenario(
       parsed.data.scenario as SimulatorScenarioName,
-      parsed.data.entranceId
+      targetEntranceId
     );
 
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    console.error("[API] Failed to run scenario:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      {
+        error: error instanceof Error ? error.message : "Internal simulation error",
+        requestId: `req_${Date.now()}`,
+      },
       { status: 500 }
     );
   }

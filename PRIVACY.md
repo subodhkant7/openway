@@ -24,11 +24,14 @@ OpenWay enforces strict architectural boundaries in code and policy. The followi
 
 ## Data Minimization & Retention
 
-1. **Transient Processing**: Video telemetry and motion events are processed in-memory.
-2. **Evidence Minimization**: When physical evidence is captured to verify that an entrance path has been restored, OpenWay stores only a single low-resolution snapshot showing the cleared pathway.
-3. **Automated Expiration**: Physical evidence snapshots are subject to strict rolling retention policies (e.g. 7-day retention for operator dispute resolution, followed by automated cryptographic erasure).
+OpenWay operates under a strict data minimization charter (see complete details in [docs/data-lifecycle.md](docs/data-lifecycle.md)):
+
+1. **Ephemeral Image Buffers (No Unnecessary S3 Media Storage)**: Camera snapshot image bytes are processed strictly in server volatile memory (`Uint8Array`) and streamed directly to Amazon Bedrock over TLS. OpenWay does **NOT** write camera images to S3 buckets, local disk, or public folders. Raw media bytes are discarded immediately upon inference completion.
+2. **Metadata-Only Persistence**: Amazon DynamoDB stores only cryptographic SHA-256 checksums, capture timestamps, hardware provenance, and structured accessibility observations.
+3. **Transient Processing**: Video telemetry and motion events are processed in-memory.
 4. **Credential Isolation**: All Ring tokens and credentials remain strictly server-side and are never transmitted to client browsers or third-party analytical trackers.
 5. **Sanitized Audit Events**: Audit events record timestamps, correlation IDs, and state transitions; they never store customer names, secrets, signed URLs, or raw image payloads.
+6. **Isolated Demo Reset**: Demo venue history and active tasks can be purged and reset idempotently by evaluators via `POST /api/demo/reset`.
 
 ---
 

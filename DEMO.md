@@ -1,15 +1,16 @@
-# OpenWay Phase 5 — Interactive Demo Script
+# OpenWay Phase 6 — Interactive Demo Script
 
-## Ring Evidence Semantics, Verification Hardening & Failure Proofs
+## AWS Cloud Deployment, Durable Persistence & Judge Walkthrough
 
-This script walks through a complete, live demonstration of OpenWay's **Phase 5 hardened Ring evidence pipeline**: establishing an uncompromised distinction between an event that occurred, evidence that existed, and evidence that was actually captured after remediation.
+This script walks through a complete, live demonstration of OpenWay's **Phase 6 production-deployed accessibility assurance system**: establishing durable cloud persistence with Amazon DynamoDB, multimodal AI vision with Amazon Bedrock, and an uncompromised verification gate that survives browser and application reloads.
 
 ---
 
 ## Prerequisites
 
-- Development server running: `npm run dev`
-- Browser open to: [http://localhost:3000](http://localhost:3000)
+- Deployed Cloud Application: AWS Amplify Hosting (`https://main.d2k4o9u0v1.amplifyapp.com`) or local dev server
+- Browser open to: `https://main.d2k4o9u0v1.amplifyapp.com` (or [http://localhost:3000](http://localhost:3000))
+- Reference: [Hackathon Judge Guide (JUDGE.md)](JUDGE.md) | [AWS Deployment Guide](docs/deployment.md)
 
 ---
 
@@ -75,7 +76,7 @@ VERIFIED RESTORED
 ## Canonical Demo Scenario
 
 ### Step 1: Baseline Available
-1. Open [http://localhost:3000](http://localhost:3000).
+1. Open `https://main.d2k4o9u0v1.amplifyapp.com` (or run locally at `http://localhost:3000`).
 2. Review the **Selected Entrance Assurance** card:
    - Configured Entrance: **Side Accessible Entrance** at Maple Street Cafe.
    - Bound Ring Camera: **Front Ramp Camera (`cam_ring_library_01` / comp: `component_video_01`)**.

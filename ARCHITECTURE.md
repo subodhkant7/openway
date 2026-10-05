@@ -117,7 +117,13 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 
 ### 6. Persistence Layer (`src/persistence/`)
 - `repositories.ts`: Clean repository contracts decoupling the domain from storage engines (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `ObservationRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`).
-- `memoryStore.ts`: Transactional storage provider featuring atomic multi-entity transactions with snapshot-based rollback on failure.
+- `dynamo/`: Production Amazon DynamoDB single-table persistence adapter:
+  - `DynamoStorageProvider.ts`: Full implementation of `StorageProvider` with atomic `TransactWriteItems` bundling assessments, remediation tasks, and audit events.
+  - `schema.ts`: Single-table partition (`PK`) and sort key (`SK`) conventions with Global Secondary Index (`GSI1PK`, `GSI1SK`).
+  - `idempotency.ts`: Durable distributed idempotency records with conditional write locks (`attribute_not_exists(PK)`) protecting concurrent webhook arrivals across multiple server instances.
+  - `concurrency.ts`: Optimistic concurrency error handling (`OptimisticLockError`) and exponential jitter retry helper (`withOptimisticRetry`).
+- `memoryStore.ts`: In-memory transactional storage provider retained for lightning-fast deterministic unit testing.
+- `bootstrap.ts`: Deterministic, idempotent seeding of the demo venue (`venue_maple_cafe`) and entrance (`entrance_side_accessible`).
 
 ### 7. Vision Layer (`src/vision/`)
 - `VisionAnalyzer.ts`: Provider-neutral vision interface (`VisionAnalyzer`, `VisionAnalysisInput`, `DetailedVisionObservation`). Keeps Ring != Vision != Policy.
@@ -133,6 +139,7 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `RingClient.ts`: Server-side HTTP client with SSRF redirect origin protection (`isValidRingMediaHost`), authoritative capture timestamp extraction (`x-ring-captured-at`, `Last-Modified`), and 416/503 handling.
 - `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `links.next`.
 - `RingSimulatorProvider.ts`: Deterministic offline simulator maintaining strict `SIMULATED_LOCAL` provenance separation.
+- `accountLinking.ts`: Ring Partner OAuth account-linking scaffolding with AES-256-GCM token encryption at rest and automated refresh abstraction.
 
 ---
 
@@ -147,6 +154,8 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 | **Missing Capture Timestamp** | Temporal classifier marks evidence `TEMPORALLY_UNVERIFIED`. | `UNKNOWN` |
 | **Media 404 / 416 / Timeout** | Client catches upstream media absence and surfaces typed error. | `UNKNOWN` |
 | **Arbitrary Redirect SSRF** | `isValidRingMediaHost` rejects non-Ring/non-AWS redirect targets. | Download Aborted / Rejected |
+| **Concurrent Webhook Ingestion** | Durable DynamoDB conditional write locks (`attribute_not_exists(PK)`). | Duplicate Swallowed / Processed Once |
+| **Concurrent State Mutation** | Optimistic locking on assessment versioning with exponential backoff retry. | Clean State Reconciliation |
+| **Process / Container Restart** | State durably persisted in Amazon DynamoDB; survives browser and host reloads. | Persistent Operational Continuity |
 | **Upstream 429 Rate Limit** | Bounded exponential backoff with jitter in `RingClient`. | Operational continuity |
-| **Duplicate Webhook** | In-memory sliding TTL cache keyed on `meta.request_id`. | Gracefully swallowed (`duplicate`) |
-| **Storage Transaction Failure**| Snapshot restoration rolls back all partial mutations atomically. | Consistent pre-transaction state |
+| **Storage Transaction Failure**| TransactWriteItems rolls back all partial mutations atomically. | Consistent pre-transaction state |

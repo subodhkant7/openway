@@ -40,6 +40,16 @@ OpenWay verifies **only camera-observable physical conditions explicitly configu
 
 ---
 
+## 2.1 Public Demo & Judge Quickstart
+
+- **Judge Walkthrough Guide**: See [JUDGE.md](JUDGE.md) for the fast 3-minute evaluation sequence.
+- **Hosted Cloud Deployment**: Continuous deployment on **AWS Amplify Hosting** from `https://github.com/subodhkant7/openway.git` (`main` branch) with single-table Amazon DynamoDB persistence.
+- **Judge Access URL**: [http://localhost:3000](http://localhost:3000) (or live Amplify URL `https://main.d2k4o9u0v1.amplifyapp.com`).
+- **Health & Telemetry Endpoint**: [`/api/health`](file:///Users/urjasoft/Documents/OpenWay/src/app/api/health/route.ts) reports live system health, database status, Bedrock configuration, and build metadata without exposing secrets.
+- **Isolated Demo Reset**: Click **"Reset Demo Narrative"** in the UI or call `POST /api/demo/reset` to safely restart the assurance narrative.
+
+---
+
 ## 3. Why Ring Is Required
 
 Ensuring continuous physical accessibility requires reliable, real-world visual observations of building entrances, curb-cuts, ramps, and pathways:
@@ -82,7 +92,7 @@ All Ring credentials remain strictly server-side and are **never exposed to clie
 # 1. Install dependencies
 npm install
 
-# 2. Run full test suite (182 tests across 22 suites)
+# 2. Run full test suite (197 tests across 25 suites)
 npm run test
 
 # 3. Verify TypeScript type safety
@@ -107,7 +117,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 1. **Simulator Mode (Default)**:
    - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Runtime: SIMULATOR` with clear badges: `SIMULATED RING` or `SIMULATED RING + AMAZON BEDROCK`.
    - All simulated evidence is honestly stamped: `SIMULATED_LOCAL`.
-   - Use the **Phase 5 Verification & Demo Workbench** in the operator dashboard to execute one-click scenarios:
+   - Use the **Phase 6 Judge Demo & Assurance Workbench** in the operator dashboard to execute one-click scenarios:
      - `1. RUN PREEMPTIVE OBSTRUCTION` (Ring motion → Fresh evidence → INTERRUPTED → Task OPEN)
      - `2. RUN STAFF REMEDIATION` (Staff reports complete → RECHECKING; verification actively requested)
      - `3. RUN VERIFICATION` (Explicit fresh evidence captured after completion → VERIFIED_RESTORED)
@@ -180,6 +190,9 @@ OpenWay enforces an uncompromised distinction between an event that occurred, ev
    Reconciliation follows official Ring JSON:API pagination semantics via `links.next` without hardcoding page sizes or numeric offsets.
 
 For in-depth architectural and policy documentation, see:
+- [Hackathon Judge Guide](JUDGE.md)
+- [AWS Production Deployment Guide](docs/deployment.md)
+- [Data Lifecycle & Privacy Retention](docs/data-lifecycle.md)
 - [Ring Evidence Semantics & Download Audit](docs/ring-evidence-semantics.md)
 - [Live Ring Verification Status](docs/live-ring-verification.md)
 - [Proactive Assurance & Remediation Workflow](docs/proactive-assurance.md)

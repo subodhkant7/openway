@@ -96,6 +96,35 @@ Replaying previous clear camera snapshots or reusing an image captured before a 
 
 ---
 
-## 10. Vulnerability Reporting
+## 10. DynamoDB Multi-Tenant Isolation & Conditional Atomicity
+
+OpenWay uses a production-grade single-table DynamoDB architecture with explicit tenant boundaries:
+- **Strict Key Partitioning**: All data records use deterministic prefixes (`VENUE#<id>`, `ENTRANCE#<id>`, `EVIDENCE#<id>`). Cross-tenant key leakage or cross-venue data retrieval is prevented by prefixing queries with tenant IDs.
+- **Atomic Transactions (`TransactWriteItems`)**: Critical state transitions updating the entrance assessment, remediation task, and audit log occur within a single atomic DynamoDB transaction. Partial state commits are impossible.
+- **Optimistic Concurrency Control**: Entity mutations verify version counters or state conditions (`attribute_not_exists(PK)` or version match), rejecting concurrent out-of-order writes with `OptimisticLockError`.
+- **Durable Idempotency Locking**: Webhook requests acquire a durable conditional lock in DynamoDB (`attribute_not_exists(PK)` with TTL), preventing duplicate execution across multiple serverless container instances.
+
+---
+
+## 11. Ring Account-Linking Token Encryption & Storage Security
+
+For production multi-tenant deployments requiring Ring OAuth:
+- **Envelope / AEAD Encryption at Rest**: Ring access tokens and refresh tokens are encrypted at rest using AES-256-GCM (`RingAccountLinkingService.encryptToken`) with cryptographically secure 12-byte initialization vectors (IVs) and authentication tags.
+- **No Token Logging**: Logging filters strictly sanitize tokens, auth codes, and secret headers before emitting log records.
+- **Token Refresh Abstraction**: OpenWay never uses refresh tokens as bearer tokens. If an access token expires and refresh credentials are invalid, the system halts with an explicit `ACCOUNT_RELINK_REQUIRED` status.
+
+---
+
+## 12. Public Demo Sandbox & Mutation Rate Limiting
+
+The public deployed demo is exposed to hackathon judges and evaluators without requiring Ring credentials, protected by bounded sandbox constraints:
+- **Strict Demo Tenant Binding**: Public mutation endpoints (`POST /api/demo/reset`, `POST /api/simulator/scenario`) validate that the target entrance strictly matches `entrance_side_accessible`. Requests targeting any other entrance or venue are rejected with HTTP 403 Forbidden.
+- **Sliding-Window Rate Limiting**: All public endpoints enforce rate limiting (15 requests/minute for reset, 30 requests/minute for scenario generation, 60 requests/minute for read queries).
+- **Safe Health Endpoint**: `GET /api/health` reports operational status and dependency telemetry (database, Bedrock, Ring) while omitting all keys, secrets, database table ARNs, and sensitive internal paths.
+
+---
+
+## 13. Vulnerability Reporting
 
 If you discover a security vulnerability within OpenWay, please contact the maintainers directly via repository issue or security advisory.
+
