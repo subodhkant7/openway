@@ -8,6 +8,12 @@ export interface RingClientConfig {
   maxRetries?: number;
 }
 
+export interface ImageDownloadResult {
+  dataUrl?: string;
+  url?: string;
+  format: string;
+}
+
 export class RingClient {
   private readonly accessToken?: string;
   private readonly baseUrl: string;
@@ -67,7 +73,7 @@ export class RingClient {
 
         const headers = new Headers(options.headers);
         headers.set("Authorization", `Bearer ${this.accessToken}`);
-        headers.set("Accept", "application/json");
+        headers.set("Accept", "application/vnd.api+json, application/json");
         headers.set("X-Correlation-Id", correlationId);
 
         const response = await fetch(url, {
@@ -149,14 +155,13 @@ export class RingClient {
           });
         }
 
-        // Parse JSON response
+        // Parse JSON / JSON:API response
         const contentType = response.headers.get("content-type") || "";
-        if (contentType.includes("application/json") || contentType.includes("json")) {
+        if (contentType.includes("json")) {
           const data = (await response.json()) as T;
           return data;
         }
 
-        // If not JSON (e.g. 204 No Content), return empty object
         const text = await response.text();
         return (text ? JSON.parse(text) : {}) as T;
       } catch (err: unknown) {
@@ -209,5 +214,132 @@ export class RingClient {
       correlationId,
       isRetryable: false,
     });
+  }
+
+  /**
+   * Implements official Ring Partner API image retrieval via:
+   * POST /v1/devices/{device_id}/media/image/download
+   * 
+   * Handles 303 See Other redirects, pre-signed location URLs, and binary media streams.
+   */
+  public async downloadImage(
+    endpoint: string,
+    body: Record<string, unknown> = { components: ["camera"] }
+  ): Promise<ImageDownloadResult> {
+    const correlationId = crypto.randomUUID();
+    const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    const url = `${this.baseUrl}${cleanEndpoint}`;
+
+    if (!this.hasToken()) {
+      throw new RingProviderError({
+        code: "CONFIGURATION_ERROR",
+        message: "Ring access token is not configured.",
+        correlationId,
+      });
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      safeLog("info", "Ring media download request initiated", {
+        correlationId,
+        endpoint: cleanEndpoint,
+      });
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          "Content-Type": "application/json",
+          Accept: "image/jpeg, image/png, application/json",
+          "X-Correlation-Id": correlationId,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+        redirect: "manual", // Intercept 303 redirect if present
+      });
+
+      clearTimeout(timer);
+
+      // Official Ring 303 See Other redirect with pre-signed URL in Location header
+      if (response.status === 303 || response.status === 302) {
+        const locationUrl = response.headers.get("Location") || response.headers.get("location");
+        if (locationUrl) {
+          return {
+            url: locationUrl,
+            format: locationUrl.includes(".png") ? "image/png" : "image/jpeg",
+          };
+        }
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new RingProviderError({
+            code: "AUTHENTICATION_ERROR",
+            message: "Ring API authentication failed during image download.",
+            statusCode: 401,
+            correlationId,
+          });
+        }
+        if (response.status === 404 || response.status === 410) {
+          throw new RingProviderError({
+            code: "MEDIA_UNAVAILABLE",
+            message: "Image snapshot media is currently unavailable for this device.",
+            statusCode: response.status,
+            correlationId,
+          });
+        }
+        throw new RingProviderError({
+          code: "RING_API_ERROR",
+          message: `Image download failed with status ${response.status}`,
+          statusCode: response.status,
+          correlationId,
+        });
+      }
+
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+
+      // If returned binary content
+      if (contentType.includes("image/")) {
+        const arrayBuffer = await response.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString("base64");
+        return {
+          dataUrl: `data:${contentType};base64,${base64}`,
+          format: contentType,
+        };
+      }
+
+      // If returned JSON with download URL or attributes
+      if (contentType.includes("json")) {
+        const json = await response.json();
+        const downloadUrl =
+          json.url ||
+          json.image_url ||
+          json.data?.attributes?.url ||
+          json.data?.attributes?.download_url;
+
+        if (downloadUrl) {
+          return {
+            url: downloadUrl,
+            format: "image/jpeg",
+          };
+        }
+      }
+
+      throw new RingProviderError({
+        code: "MEDIA_UNAVAILABLE",
+        message: "No valid image stream or download URL received from Ring API.",
+        correlationId,
+      });
+    } catch (err) {
+      clearTimeout(timer);
+      if (err instanceof RingProviderError) throw err;
+      throw new RingProviderError({
+        code: "RING_API_ERROR",
+        message: `Failed to download image from Ring: ${err instanceof Error ? err.message : "Unknown error"}`,
+        correlationId,
+      });
+    }
   }
 }

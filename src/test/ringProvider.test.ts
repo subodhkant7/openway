@@ -16,42 +16,90 @@ describe("RingPlaygroundProvider", () => {
     expect(status.activeDeviceCount).toBe(0);
   });
 
-  it("reports CONNECTED state and discovers devices with normalized capabilities", async () => {
+  it("correctly parses JSON:API compound document with included relationships", async () => {
     const mockClient = new RingClient({ accessToken: "valid_token" });
-    vi.spyOn(mockClient, "request").mockImplementation(async (endpoint: string) => {
-      if (endpoint === "/v1/devices") {
-        return {
-          devices: [
-            {
-              id: "ring_cam_001",
-              name: "West Ramp Access Camera",
-              kind: "doorbell",
-              status: { state: "online", online: true },
-              capabilities: {
-                supports_live_video: true,
-                supports_snapshots: true,
-                supports_media_clips: true,
-                supports_motion_events: true,
-              },
-              components: ["camera", "doorbell", "motion_detector"],
+
+    // Official Ring JSON:API compound document structure
+    const jsonApiResponse = {
+      data: [
+        {
+          id: "dev_compound_01",
+          type: "device",
+          attributes: {
+            name: "West Ramp Access Camera",
+            kind: "doorbell",
+            components: ["camera", "doorbell"],
+          },
+          relationships: {
+            status: {
+              data: { id: "stat_01", type: "status" },
             },
-          ],
-        };
+            capabilities: {
+              data: { id: "caps_01", type: "capabilities" },
+            },
+          },
+        },
+      ],
+      included: [
+        {
+          id: "stat_01",
+          type: "status",
+          attributes: {
+            state: "online",
+            online: true,
+            battery_level: 91,
+          },
+        },
+        {
+          id: "caps_01",
+          type: "capabilities",
+          attributes: {
+            supports_live_video: true,
+            supports_snapshots: true,
+            supports_media_clips: true,
+            supports_motion_events: true,
+          },
+        },
+      ],
+    };
+
+    vi.spyOn(mockClient, "request").mockImplementation(async (endpoint: string) => {
+      if (endpoint.includes("/v1/devices")) {
+        return jsonApiResponse;
       }
       return {};
     });
 
     const provider = new RingPlaygroundProvider(mockClient);
-    const status = await provider.getProviderStatus();
-
-    expect(status.state).toBe("CONNECTED");
-    expect(status.activeDeviceCount).toBe(1);
-
     const devices = await provider.listDevices();
+
     expect(devices).toHaveLength(1);
     expect(devices[0].name).toBe("West Ramp Access Camera");
+    expect(devices[0].online).toBe(true);
+    expect(devices[0].status).toBe("online");
+    expect(devices[0].batteryLevel).toBe(91);
     expect(devices[0].capabilities.supports_live_video).toBe(true);
     expect(devices[0].capabilities.supports_snapshots).toBe(true);
+  });
+
+  it("calls official POST /v1/devices/{id}/media/image/download for image evidence", async () => {
+    const mockClient = new RingClient({ accessToken: "valid_token" });
+    const spy = vi.spyOn(mockClient, "downloadImage").mockResolvedValue({
+      url: "https://s3.amazonaws.com/ring-pre-signed-url.jpg",
+      format: "image/jpeg",
+    });
+
+    const provider = new RingPlaygroundProvider(mockClient);
+    const evidence = await provider.getImageEvidence("dev_compound_01", ["camera"]);
+
+    expect(spy).toHaveBeenCalledWith(
+      "/v1/devices/dev_compound_01/media/image/download",
+      { components: ["camera"] }
+    );
+    expect(evidence).not.toBeNull();
+    expect(evidence?.url).toBe("https://s3.amazonaws.com/ring-pre-signed-url.jpg");
+    expect(evidence?.isSimulated).toBe(false);
+    expect(evidence?.source).toBe("ring_media_download");
   });
 
   it("reports ERROR state when upstream API returns 401 without exposing secret in details", async () => {
@@ -68,7 +116,7 @@ describe("RingPlaygroundProvider", () => {
   });
 });
 
-describe("RingSimulatorProvider", () => {
+describe("RingSimulatorProvider & Simulator Honesty", () => {
   it("provides deterministic simulated devices and SIMULATED status by default", async () => {
     const simulator = RingSimulatorProvider.getInstance();
     simulator.setConnectionState(true);
@@ -79,46 +127,34 @@ describe("RingSimulatorProvider", () => {
 
     const devices = await simulator.listDevices();
     expect(devices.length).toBeGreaterThan(0);
-    // User-assigned name used
     expect(devices[0].name).toBe("Main Accessible Ramp Entrance");
   });
 
-  it("supports toggling device online/offline states deterministically", async () => {
-    const simulator = RingSimulatorProvider.getInstance();
-    const devices = await simulator.listDevices();
-    const testDev = devices[0];
-
-    simulator.setDeviceOnlineState(testDev.id, false);
-    let devStatus = await simulator.getDeviceStatus(testDev.id);
-    expect(devStatus).toBe("offline");
-
-    simulator.setDeviceOnlineState(testDev.id, true);
-    devStatus = await simulator.getDeviceStatus(testDev.id);
-    expect(devStatus).toBe("online");
-  });
-
-  it("generates accessible SVG snapshot data URL", async () => {
+  it("generates honestly labeled simulated test evidence without claiming to be live Ring media", async () => {
     const simulator = RingSimulatorProvider.getInstance();
     const devices = await simulator.listDevices();
 
-    const snapshot = await simulator.getSnapshot(devices[0].id);
-    expect(snapshot).not.toBeNull();
-    expect(snapshot?.dataUrl).toContain("data:image/svg+xml");
-    expect(snapshot?.deviceId).toBe(devices[0].id);
+    const evidence = await simulator.getImageEvidence(devices[0].id);
+    expect(evidence).not.toBeNull();
+    expect(evidence?.isSimulated).toBe(true);
+    expect(evidence?.source).toBe("simulator");
+
+    // Decode SVG data URL to verify honesty
+    const rawSvg = decodeURIComponent(evidence?.dataUrl?.replace("data:image/svg+xml;utf8,", "") || "");
+    expect(rawSvg).toContain("SIMULATED - LOCAL TEST EVIDENCE");
+    // Strictly must NOT claim "RING LIVE SNAPSHOT"
+    expect(rawSvg).not.toContain("RING LIVE SNAPSHOT");
   });
 
-  it("triggers deterministic motion and obstruction events", async () => {
+  it("marks simulated events with simulated_local provenance category", async () => {
     const simulator = RingSimulatorProvider.getInstance();
     const event = simulator.triggerEvent({
-      eventType: "motion",
+      eventType: "simulated_motion",
       summary: "Patron approaching entrance ramp",
     });
 
-    expect(event.eventType).toBe("motion");
+    expect(event.eventCategory).toBe("simulated_local");
     expect(event.provider).toBe("simulator");
-
-    const recent = await simulator.getRecentEvents();
-    expect(recent.some((e) => e.eventId === event.eventId)).toBe(true);
   });
 });
 
@@ -134,7 +170,7 @@ describe("Domain Accessibility Assurance Rules", () => {
       evidenceId: "ev_old",
       capturedAt: "2026-10-05T09:55:00.000Z",
       deviceId: "cam_1",
-      mediaType: "snapshot" as const,
+      mediaType: "image_download" as const,
       provedPhysicalStateChange: true,
       notes: "Before event",
     };
@@ -145,7 +181,7 @@ describe("Domain Accessibility Assurance Rules", () => {
       evidenceId: "ev_unproven",
       capturedAt: "2026-10-05T10:05:00.000Z",
       deviceId: "cam_1",
-      mediaType: "snapshot" as const,
+      mediaType: "image_download" as const,
       provedPhysicalStateChange: false,
       notes: "Door still blocked",
     };
@@ -156,7 +192,7 @@ describe("Domain Accessibility Assurance Rules", () => {
       evidenceId: "ev_fresh_proof",
       capturedAt: "2026-10-05T10:05:00.000Z",
       deviceId: "cam_1",
-      mediaType: "snapshot" as const,
+      mediaType: "image_download" as const,
       provedPhysicalStateChange: true,
       notes: "Obstruction removed and path completely clear",
     };

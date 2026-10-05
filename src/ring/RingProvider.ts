@@ -3,7 +3,7 @@ import {
   RingDeviceCapabilities,
   RingEvent,
   RingProviderStatus,
-  RingSnapshot,
+  RingImageEvidence,
 } from "./types";
 
 /**
@@ -19,6 +19,7 @@ export interface RingProvider {
 
   /**
    * Discovers and returns all configured Ring devices normalized to OpenWay models.
+   * Conforms to official JSON:API /v1/devices structure.
    */
   listDevices(): Promise<RingDevice[]>;
 
@@ -33,14 +34,20 @@ export interface RingProvider {
   getDeviceCapabilities(deviceId: string): Promise<RingDeviceCapabilities>;
 
   /**
-   * Retrieves historical or recent events (e.g. motion, ding, state changes).
+   * Retrieves historical or recent events (e.g. motion, button_press).
    */
   getRecentEvents(deviceId?: string, limit?: number): Promise<RingEvent[]>;
 
   /**
-   * Fetches an image snapshot observation from the camera if supported.
+   * Fetches an image observation from the camera using the official Ring Partner API endpoint:
+   * POST /v1/devices/{device_id}/media/image/download
+   * 
+   * Returns a provider-neutral RingImageEvidence model.
    */
-  getSnapshot(deviceId: string): Promise<RingSnapshot | null>;
+  getImageEvidence(
+    deviceId: string,
+    components?: string[]
+  ): Promise<RingImageEvidence | null>;
 
   /**
    * Normalizes raw Ring API or webhook payloads into a safe, strongly-typed RingEvent.

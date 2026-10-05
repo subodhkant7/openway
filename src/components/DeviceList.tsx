@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { RingDevice, RingSnapshot } from "@/ring/types";
+import { RingDevice, RingImageEvidence } from "@/ring/types";
 import {
   Camera,
   Video,
@@ -11,6 +11,7 @@ import {
   Battery,
   Image as ImageIcon,
   Clock,
+  Zap,
 } from "lucide-react";
 
 interface DeviceListProps {
@@ -29,22 +30,23 @@ export function DeviceList({
   activeMode,
 }: DeviceListProps) {
   const [snapshotLoadingId, setSnapshotLoadingId] = useState<string | null>(null);
-  const [activeSnapshot, setActiveSnapshot] = useState<RingSnapshot | null>(null);
+  const [activeEvidence, setActiveEvidence] = useState<RingImageEvidence | null>(null);
   const [snapshotError, setSnapshotError] = useState<string | null>(null);
 
-  const fetchDeviceSnapshot = async (deviceId: string) => {
+  const fetchDeviceEvidence = async (deviceId: string) => {
     setSnapshotLoadingId(deviceId);
     setSnapshotError(null);
     try {
       const res = await fetch(`/api/ring/snapshot?deviceId=${encodeURIComponent(deviceId)}&mode=${activeMode}`);
       const data = await res.json();
-      if (data.success && data.snapshot) {
-        setActiveSnapshot(data.snapshot);
+      const evidence = data.imageEvidence || data.snapshot;
+      if (data.success && evidence) {
+        setActiveEvidence(evidence);
       } else {
-        setSnapshotError(data.error?.message || "Snapshot unavailable from provider.");
+        setSnapshotError(data.error?.message || "Image evidence unavailable from provider.");
       }
     } catch (err) {
-      setSnapshotError(err instanceof Error ? err.message : "Failed to fetch snapshot");
+      setSnapshotError(err instanceof Error ? err.message : "Failed to fetch image evidence");
     } finally {
       setSnapshotLoadingId(null);
     }
@@ -101,7 +103,7 @@ export function DeviceList({
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        {/* Primary Label: User-assigned name */}
+                        {/* Primary Label: User-assigned name from Ring */}
                         <h3 className="text-base font-semibold text-white">
                           {device.name}
                         </h3>
@@ -147,12 +149,12 @@ export function DeviceList({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => fetchDeviceSnapshot(device.id)}
+                        onClick={() => fetchDeviceEvidence(device.id)}
                         disabled={snapshotLoadingId === device.id}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition disabled:opacity-50"
                       >
                         <ImageIcon className="h-3.5 w-3.5 text-sky-400" />
-                        <span>{snapshotLoadingId === device.id ? "Fetching..." : "Fresh Snapshot"}</span>
+                        <span>{snapshotLoadingId === device.id ? "Downloading..." : "Image Evidence"}</span>
                       </button>
 
                       {onSelectDevice && (
@@ -205,37 +207,50 @@ export function DeviceList({
           </ul>
         )}
 
-        {/* Snapshot Modal / Inline Preview if captured */}
+        {/* Snapshot / Image Evidence Preview */}
         {snapshotError && (
           <div className="mt-3 rounded-lg bg-rose-500/10 border border-rose-500/30 p-2.5 text-xs text-rose-300">
             {snapshotError}
           </div>
         )}
 
-        {activeSnapshot && (
+        {activeEvidence && (
           <div className="mt-4 rounded-xl border border-sky-500/40 bg-slate-950 p-3 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-sky-400 flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5" />
-                Latest Physical Evidence (Observation Snapshot)
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sky-400 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Physical Observation Evidence
+                </span>
+                {activeEvidence.isSimulated || activeMode === "simulator" ? (
+                  <span className="inline-flex items-center gap-1 rounded bg-amber-500/15 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
+                    <Zap className="h-3 w-3" />
+                    SIMULATED - LOCAL TEST EVIDENCE
+                  </span>
+                ) : (
+                  <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
+                    OFFICIAL RING MEDIA DOWNLOAD
+                  </span>
+                )}
+              </div>
               <span className="text-slate-400">
-                Captured: {new Date(activeSnapshot.capturedAt).toLocaleTimeString()}
+                Captured: {new Date(activeEvidence.capturedAt).toLocaleTimeString()}
               </span>
             </div>
+
             <div className="overflow-hidden rounded-lg border border-slate-800">
-              {activeSnapshot.dataUrl ? (
+              {activeEvidence.dataUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={activeSnapshot.dataUrl}
-                  alt="Camera snapshot evidence of accessible entrance"
+                  src={activeEvidence.dataUrl}
+                  alt="Camera observation evidence of accessible entrance"
                   className="w-full h-auto object-cover max-h-72"
                 />
-              ) : activeSnapshot.url ? (
+              ) : activeEvidence.url ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={activeSnapshot.url}
-                  alt="Camera snapshot evidence of accessible entrance"
+                  src={activeEvidence.url}
+                  alt="Camera observation evidence of accessible entrance"
                   className="w-full h-auto object-cover max-h-72"
                 />
               ) : null}

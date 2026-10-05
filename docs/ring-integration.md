@@ -4,85 +4,137 @@ This document details the technical integration between OpenWay and the official
 
 ---
 
-## Upstream API Overview
+## 1. Upstream API Specifications & Authorities
 
 - **Base URL**: `https://api.amazonvision.com`
-- **Protocol**: HTTPS / REST / JSON (JSON:API compatible)
-- **Transport Security**: TLS 1.3
-- **Authentication**: OAuth 2.0 Bearer Tokens
-- **Webhook Delivery**: HTTPS POST with `X-Signature` HMAC-SHA256
+- **OAuth Host**: `https://oauth.ring.com`
+- **Data Specification**: **JSON:API (v1.0 / v1.1)**
+- **Transport Security**: TLS 1.3, Server-to-Server only (browser CORS calls are strictly blocked by Amazon Vision API)
+- **Authentication**: `Authorization: Bearer <access_token>`
+- **Webhook Delivery**: HTTPS POST with `X-Signature` HMAC-SHA256 signature header
 
 ---
 
-## Supported Endpoints & Mappings
+## 2. Capability Conformance & Verification Matrix
 
-### 1. Device Discovery
-- **Endpoint**: `GET /v1/devices`
-- **Header**: `Authorization: Bearer <RING_ACCESS_TOKEN>`
-- **Response**: List of authorized Ring hardware devices (doorbells, cameras).
-- **OpenWay Normalizer**:
-  - Extracts user-assigned device name (`name` or `description`).
-  - Identifies device form factor (`kind`: doorbell, stickup_cam, floodlight_cam).
-  - Resolves hardware components (`components`: camera, motion_detector, speaker, chime).
+| Capability | Implementation | Official Endpoint / Protocol | Verification Status | Remaining Risk / Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ring Device Discovery** | `RingPlaygroundProvider.listDevices()` | `GET /v1/devices?include=status,capabilities` (JSON:API) | **VERIFIED** | Handled via compound documents (`data`, `attributes`, `relationships`, `included`). |
+| **Ring Device Status** | `RingPlaygroundProvider.getDeviceStatus()` | `GET /v1/devices/{id}/status` or compound document | **VERIFIED** | Normalizes online/offline state and battery telemetry. |
+| **Ring Capabilities** | `RingPlaygroundProvider.getDeviceCapabilities()` | `GET /v1/devices/{id}/capabilities` or compound document | **VERIFIED** | Normalizes `supports_live_video`, `supports_snapshots`, `supports_media_clips`, `supports_motion_events`. |
+| **Ring Image Evidence** | `RingClient.downloadImage()`, `RingPlaygroundProvider.getImageEvidence()` | `POST /v1/devices/{id}/media/image/download` with `{ components: ["camera"] }` | **DOCUMENTED / SPEC-VERIFIED** (Not live-verified on physical Ring account) | Correctly handles HTTP `303 See Other` redirects to pre-signed S3 URLs as well as binary dataUrl streams. |
+| **Ring Webhook Ingestion** | `RingWebhookHandler.processWebhook()` | `POST /api/ring/webhook` (v1.1 schema) | **VERIFIED** | Validates `X-Signature` HMAC-SHA256 with constant-time comparison; deduplicates using `meta.request_id`. |
+| **Ring Event Normalization** | `RingPlaygroundProvider.normalizeEvent()` | Official v1.1 event schema (`button_press`, `motion`) | **VERIFIED** | Explicitly separates `official_ring`, `simulated_local`, and `openway_domain` event categories. |
+| **Ring Media Clips** | `RingProvider` capability detection | `POST /v1/devices/{id}/media/video/download` | **DOCUMENTED / DEFERRED** | Capability flag detected; video download deferred to Phase 2. |
+| **OAuth Account Linking** | `RingApiProvider` & documentation | `https://oauth.ring.com/v2/authorize` & `/oauth/token` | **PENDING PHASE 2** | Short-lived Playground Access Token (~30–60 min) used for Phase 1. |
+| **Local Simulator** | `RingSimulatorProvider` | Offline deterministic in-memory provider | **VERIFIED** | Honestly labeled with `SIMULATED - LOCAL TEST EVIDENCE`. |
 
-### 2. Device Status
-- **Endpoint**: `GET /v1/devices/{id}/status`
-- **Response**: Operational connectivity state (`state: "online"` / `online: true`, battery telemetry).
-- **OpenWay Normalizer**: Maps upstream status to normalized `"online" | "offline" | "unknown"`.
+---
 
-### 3. Device Capabilities
-- **Endpoint**: `GET /v1/devices/{id}/capabilities`
-- **Response**: Hardware features enabled for the camera.
-- **OpenWay Normalizer**:
-  ```typescript
-  {
-    supports_live_video: boolean;
-    supports_snapshots: boolean;
-    supports_media_clips: boolean;
-    supports_motion_events: boolean;
-  }
-  ```
+## 3. Supported Endpoints & Request/Response Contracts
 
-### 4. Image Snapshot Evidence
-- **Endpoint**: `GET /v1/devices/{id}/snapshot`
-- **Response**: URL or binary buffer of the latest visual camera observation.
-- **OpenWay Usage**: Used as physical evidence to verify whether an accessibility interruption (e.g. ramp obstruction) has actually been cleared before restoring access status.
-
-### 5. Webhook Ingestion
-- **Target**: `POST /api/ring/webhook`
+### A. Device Discovery (`GET /v1/devices`)
+- **Query Parameters**: `?include=status,capabilities`
 - **Headers**:
-  - `X-Signature`: Hex-encoded HMAC-SHA256 signature calculated over the raw request body using `RING_WEBHOOK_SECRET`.
-  - `Content-Type`: `application/json`
-- **Payload Shape**:
+  ```http
+  Authorization: Bearer <RING_ACCESS_TOKEN>
+  Accept: application/vnd.api+json, application/json
+  X-Correlation-Id: <UUID>
+  ```
+- **Response Structure**:
   ```json
   {
-    "event_id": "evt_abc123",
-    "event_type": "motion",
-    "device_id": "cam_entrance_01",
-    "timestamp": "2026-10-05T12:00:00Z",
-    "components": ["motion_sensor"]
+    "data": [
+      {
+        "id": "dev_01",
+        "type": "device",
+        "attributes": {
+          "name": "Main Accessible Ramp Entrance",
+          "kind": "doorbell"
+        },
+        "relationships": {
+          "status": { "data": { "id": "stat_01", "type": "status" } },
+          "capabilities": { "data": { "id": "caps_01", "type": "capabilities" } }
+        }
+      }
+    ],
+    "included": [
+      {
+        "id": "stat_01",
+        "type": "status",
+        "attributes": { "online": true, "state": "online", "battery_level": 94 }
+      },
+      {
+        "id": "caps_01",
+        "type": "capabilities",
+        "attributes": {
+          "supports_live_video": true,
+          "supports_snapshots": true,
+          "supports_media_clips": true,
+          "supports_motion_events": true
+        }
+      }
+    ]
+  }
+  ```
+
+### B. Image Evidence Retrieval (`POST /v1/devices/{device_id}/media/image/download`)
+- **Headers**:
+  ```http
+  Authorization: Bearer <RING_ACCESS_TOKEN>
+  Content-Type: application/json
+  Accept: image/jpeg, image/png, application/json
+  X-Correlation-Id: <UUID>
+  ```
+- **Request Body**:
+  ```json
+  {
+    "components": ["camera"]
+  }
+  ```
+- **Response Flow**:
+  - The API responds with HTTP `303 See Other`.
+  - The `Location` header contains a time-limited pre-signed Amazon S3 URL.
+  - OpenWay either returns this verified URL or downloads the stream server-side and produces a base64 Data URL (`data:image/jpeg;base64,...`) to enforce security boundaries without exposing external buckets or storing raw files permanently.
+
+### C. Webhook Ingestion (`POST /api/ring/webhook`)
+- **Headers**:
+  ```http
+  X-Signature: <hmac_sha256_hex>
+  Content-Type: application/json
+  ```
+- **Official v1.1 Schema**:
+  ```json
+  {
+    "meta": {
+      "version": "1.1",
+      "time": "2026-10-05T12:00:00.000Z",
+      "request_id": "c83081fc-2f1b-4cb7-8b18-b18a318b8bab",
+      "account_id": "ava1.ring.account.XXXYYY"
+    },
+    "data": {
+      "id": "cam_front_entrance_motion_1771027372",
+      "type": "motion",
+      "attributes": {
+        "source": "cam_front_entrance",
+        "source_type": "devices",
+        "timestamp": 1771027372393
+      },
+      "relationships": {
+        "devices": {
+          "links": {
+            "self": "/v1/devices/cam_front_entrance"
+          }
+        }
+      }
+    }
   }
   ```
 
 ---
 
-## Integration Modes
+## 4. Media Security & Retention Boundaries
 
-### Mode A: Ring Developer Playground (Phase 1)
-- **Use Case**: Fast prototyping, local development, and hackathon evaluation.
-- **Workflow**:
-  1. Generate short-lived token in the Ring Developer Portal.
-  2. Configure `RING_ACCESS_TOKEN` in `.env.local`.
-  3. `RingPlaygroundProvider` handles queries server-to-server.
-- **Expiry**: ~30-60 minutes.
-
-### Mode B: Production Ring Partner API (Phase 2)
-- **Use Case**: Production venues, commercial deployments.
-- **Workflow**:
-  1. Full OAuth 2.0 authorization code grant.
-  2. Exchange authorization code for access and refresh tokens.
-  3. Background token refresh daemon.
-
-### Mode C: Deterministic Local Simulator (Included)
-- **Use Case**: CI/CD pipelines, offline hacking, deterministic demonstrations.
-- **Workflow**: `RingSimulatorProvider` mirrors the exact `RingProvider` interface with in-memory state.
+1. **Zero Public Directory Leakage**: No Ring image or video files are written to Next.js `public/` directories or exposed without server authorization.
+2. **In-Memory Streaming**: Binary images downloaded from Ring are held temporarily in-memory and converted to ephemeral Data URLs or handled as signed time-limited redirects.
+3. **No Long-Term Unencrypted Storage**: Media is discarded after verification is complete.

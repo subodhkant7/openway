@@ -168,6 +168,8 @@ describe("OpenWay Operator UI Components", () => {
     expect(screen.getByText("Snapshots")).toBeInTheDocument();
     expect(screen.getByText("Media Clips")).toBeInTheDocument();
     expect(screen.getByText("Motion Events")).toBeInTheDocument();
+    // Action button
+    expect(screen.getByText("Image Evidence")).toBeInTheDocument();
   });
 
   it("renders EntranceAssuranceCard with [not configured yet] empty state", () => {

@@ -1,14 +1,19 @@
 /**
  * OpenWay Domain Layer: Accessibility Assurance Models
  * 
- * ARCHITECTURAL RULE:
- * Ring supplies raw observations, media, and hardware events.
- * The Domain Layer translates camera observations into business accessibility states.
+ * ARCHITECTURAL BOUNDARY:
+ * Ring supplies raw observations, media evidence, and hardware events.
+ * The Domain Layer translates camera observations into verified access path states.
  * No business rules or accessibility policy logic live inside the Ring adapter.
+ * 
+ * SCOPE BOUNDARY:
+ * OpenWay verifies only explicitly configured, camera-observable physical conditions
+ * (such as ramp clearance, doorway paths, and automatic doors).
+ * It does not certify building-wide code or general legal compliance.
  */
 
 export type EntranceAssuranceStatus =
-  | "ASSURED"               // Access path is clear and verified
+  | "ASSURED"               // Access path is clear and verified by fresh observation
   | "INTERRUPTED"           // Temporary obstruction/interruption detected
   | "PENDING_VERIFICATION"  // Remediation reported, awaiting fresh physical evidence
   | "UNCONFIGURED"          // Entrance not yet bound to a Ring camera device
@@ -26,14 +31,14 @@ export interface AccessibilityObservation {
     | "DEVICE_OFFLINE"
     | "MOTION_DETECTED";
   summary: string;
-  source: "ring_telemetry" | "ring_snapshot" | "ring_webhook";
+  source: "ring_telemetry" | "ring_image_evidence" | "ring_webhook" | "simulator";
 }
 
 export interface PhysicalEvidence {
   evidenceId: string;
   capturedAt: string;
   deviceId: string;
-  mediaType: "snapshot" | "video_clip";
+  mediaType: "image_download" | "video_clip" | "simulator_svg";
   mediaUrl?: string;
   dataUrl?: string;
   provedPhysicalStateChange: boolean;

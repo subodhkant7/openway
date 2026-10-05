@@ -101,6 +101,9 @@ export function EntranceAssuranceCard({
                 &ldquo;An alert is not a resolution. A resolution is not verified until new evidence
                 proves the physical state changed.&rdquo;
               </blockquote>
+              <p className="mt-2 text-[11px] text-slate-500 border-t border-slate-800/80 pt-1.5">
+                <strong>Scope:</strong> Verifies configured, camera-observable access conditions at this specific entrance. Does not certify building-wide code or legal compliance.
+              </p>
             </div>
 
             {/* Interactive demonstration actions for operator */}

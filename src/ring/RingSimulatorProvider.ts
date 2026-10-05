@@ -4,7 +4,7 @@ import {
   RingDeviceCapabilities,
   RingEvent,
   RingProviderStatus,
-  RingSnapshot,
+  RingImageEvidence,
 } from "./types";
 
 export interface SimulatorState {
@@ -74,8 +74,9 @@ export class RingSimulatorProvider implements RingProvider {
     events: [
       {
         provider: "simulator",
+        eventCategory: "simulated_local",
         eventId: "sim_ev_init_01",
-        eventType: "motion",
+        eventType: "simulated_motion",
         deviceId: "sim_device_front_ramp",
         timestamp: new Date(Date.now() - 120000).toISOString(),
         componentIds: ["motion_detector"],
@@ -102,7 +103,7 @@ export class RingSimulatorProvider implements RingProvider {
       baseUrl: "http://localhost:3000/simulator",
       lastCheck: now,
       details: this.state.connected
-        ? "Local Deterministic Simulator active (SIMULATED mode)"
+        ? "Local Deterministic Simulator active (SIMULATED mode — NOT connected to live Ring API)"
         : "Simulator set to DISCONNECTED state",
       activeDeviceCount: this.state.connected
         ? this.state.devices.filter((d) => d.online).length
@@ -140,11 +141,13 @@ export class RingSimulatorProvider implements RingProvider {
     return list.slice(-limit).reverse();
   }
 
-  public async getSnapshot(deviceId: string): Promise<RingSnapshot | null> {
+  /**
+   * Generates a simulated local test evidence image with honest labeling.
+   */
+  public async getImageEvidence(deviceId: string): Promise<RingImageEvidence | null> {
     const dev = this.state.devices.find((d) => d.id === deviceId);
     if (!dev) return null;
 
-    // Generate an accessible SVG snapshot representing entrance camera view
     const capturedAt = new Date().toISOString();
     const svg = `
       <svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360" style="background:#090d16;font-family:system-ui,sans-serif;">
@@ -163,11 +166,11 @@ export class RingSimulatorProvider implements RingProvider {
         <!-- Accessible Entrance Door Outline -->
         <rect x="250" y="80" width="140" height="100" fill="#1e293b" stroke="#10b981" stroke-width="2" rx="4"/>
         <text x="320" y="135" fill="#10b981" font-size="12" text-anchor="middle" font-weight="600">ACCESSIBLE ENTRANCE</text>
-        <!-- Overlay Badges -->
-        <rect x="20" y="20" width="180" height="28" rx="6" fill="rgba(15, 23, 42, 0.85)" stroke="#38bdf8" stroke-width="1"/>
-        <circle cx="32" cy="34" r="5" fill="#10b981"/>
-        <text x="46" y="38" fill="#f8fafc" font-size="11" font-weight="600">RING LIVE SNAPSHOT</text>
-        <text x="20" y="340" fill="#94a3b8" font-size="11">CAM: ${dev.name} [SIMULATED]</text>
+        <!-- Overlay Badges - Explicitly Honest Simulation Labels -->
+        <rect x="20" y="20" width="240" height="28" rx="6" fill="rgba(15, 23, 42, 0.9)" stroke="#f59e0b" stroke-width="1"/>
+        <circle cx="32" cy="34" r="5" fill="#f59e0b"/>
+        <text x="46" y="38" fill="#fef3c7" font-size="11" font-weight="700">SIMULATED - LOCAL TEST EVIDENCE</text>
+        <text x="20" y="340" fill="#94a3b8" font-size="11">CAMERA: ${dev.name} [MOCK]</text>
         <text x="620" y="340" fill="#94a3b8" font-size="11" text-anchor="end">${capturedAt.replace("T", " ").slice(0, 19)} UTC</text>
       </svg>
     `.trim();
@@ -181,14 +184,17 @@ export class RingSimulatorProvider implements RingProvider {
       width: 640,
       height: 360,
       format: "image/svg+xml",
+      source: "simulator",
+      isSimulated: true,
     };
   }
 
   public normalizeEvent(raw: Record<string, unknown>): RingEvent {
     return {
       provider: "simulator",
+      eventCategory: "simulated_local",
       eventId: String(raw.event_id || `sim_${Date.now()}`),
-      eventType: String(raw.event_type || "motion"),
+      eventType: String(raw.event_type || "simulated_motion"),
       deviceId: String(raw.device_id || "sim_device_front_ramp"),
       timestamp: String(raw.timestamp || new Date().toISOString()),
       componentIds: ["motion_detector"],
@@ -199,7 +205,7 @@ export class RingSimulatorProvider implements RingProvider {
     };
   }
 
-  // Simulator control methods to trigger deterministic states for testing and demo:
+  // Simulator control methods:
 
   public setConnectionState(connected: boolean): void {
     this.state.connected = connected;
@@ -212,9 +218,9 @@ export class RingSimulatorProvider implements RingProvider {
       dev.status = online ? "online" : "offline";
       dev.lastSeen = new Date().toISOString();
       this.triggerEvent({
-        eventType: online ? "device_online" : "device_offline",
+        eventType: online ? "simulated_device_online" : "simulated_device_offline",
         deviceId,
-        summary: `Device status changed: ${dev.name} is now ${online ? "ONLINE" : "OFFLINE"}`,
+        summary: `Simulator: ${dev.name} is now ${online ? "ONLINE" : "OFFLINE"}`,
       });
     }
   }
@@ -229,6 +235,7 @@ export class RingSimulatorProvider implements RingProvider {
 
     const event: RingEvent = {
       provider: "simulator",
+      eventCategory: "simulated_local",
       eventId: `sim_ev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       eventType: params.eventType,
       deviceId: targetDevice.id,

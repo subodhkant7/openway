@@ -10,55 +10,62 @@
 
 ## 1. What OpenWay Is
 
-OpenWay provides **real-time accessibility assurance for businesses and venues**. It observes configured accessibility conditions using Ring cameras and doorbells, detects temporary interruptions (such as delivery boxes blocking wheelchair ramps, snow accumulation on access paths, or propped-open fire doors), coordinates immediate remediation, and **only declares access restored after fresh physical evidence is independently verified**.
+OpenWay provides **real-time accessibility assurance for businesses and commercial venues**. It observes **configured, camera-observable accessibility conditions** (such as wheelchair ramps, automatic entrance doors, and curb cuts) using Ring cameras, detects temporary physical interruptions (such as delivery boxes blocking ramps, debris accumulation, or propped-open doors), coordinates immediate remediation, and **only declares access restored after fresh physical evidence is independently verified**.
 
 ### Core Product Principle
 
 > **"An alert is not a resolution. A resolution is not verified until new evidence proves the physical state changed."**
 
-When an accessibility obstruction is reported or remediated by staff, OpenWay does not take anyone's word for it. It requests a fresh visual observation from the venue's Ring camera and confirms that the physical obstruction has actually cleared.
+When an accessibility obstruction is reported or remediated by staff, OpenWay does not take unverified assertions. It requests fresh visual observation evidence from the venue's Ring camera and confirms that the physical obstruction has actually cleared.
+
+### Scope Boundary Notice
+
+OpenWay verifies **only camera-observable physical conditions explicitly configured by the venue**. It is **not** a general legal or municipal building-code compliance engine.
 
 ---
 
-## 2. Why Ring Is Required
+## 2. Capability Conformance & Status Matrix
+
+| Capability | Implementation & Official Endpoint | Status | Notes |
+| :--- | :--- | :--- | :--- |
+| **Ring device discovery** | `GET /v1/devices?include=status,capabilities` (JSON:API) | **VERIFIED** | Parsed via compound documents (`data`, `attributes`, `relationships`, `included`). |
+| **Ring device status** | `GET /v1/devices/{id}/status` or compound document | **VERIFIED** | Normalizes online/offline state and battery telemetry. |
+| **Ring capabilities** | `GET /v1/devices/{id}/capabilities` or compound document | **VERIFIED** | Normalizes video, snapshot, clip, and motion support flags. |
+| **Ring webhook ingestion** | `POST /api/ring/webhook` (Official v1.1 Schema) | **VERIFIED** | Validates `X-Signature` HMAC-SHA256, constant-time comparison, `request_id` deduplication. |
+| **Ring event normalization** | `RingPlaygroundProvider.normalizeEvent()` | **VERIFIED** | Distinguishes `official_ring`, `simulated_local`, and `openway_domain` events. |
+| **Ring image evidence** | `POST /v1/devices/{id}/media/image/download` | **DOCUMENTED / SPEC-VERIFIED** | Handles 303 redirects and binary data; not live-verified against physical hardware without live token. |
+| **Ring media clips** | `POST /v1/devices/{id}/media/video/download` | **DOCUMENTED / DEFERRED** | Capability detection implemented; video streaming deferred to Phase 2. |
+| **OAuth account linking** | `https://oauth.ring.com` OAuth 2.0 flow | **PENDING PHASE 2** | Short-lived Playground Access Token used for Phase 1. |
+| **Playground simulation** | `RingSimulatorProvider` | **VERIFIED** | Local offline deterministic mock honestly labeled `SIMULATED - LOCAL TEST EVIDENCE`. |
+
+---
+
+## 3. Why Ring Is Required
 
 Ensuring continuous physical accessibility requires reliable, real-world visual observations of building entrances, curb-cuts, ramps, and pathways:
 
-1. **Ubiquitous Hardware Footprint**: Millions of businesses and commercial buildings already deploy Ring video doorbells, Floodlight Cams, and Stick Up Cams at their entrances.
-2. **High-Fidelity Telemetry**: Ring provides motion events, video snapshots, media clips, and two-way audio.
-3. **Official Developer Platform**: The **Amazon Ring Partner API** (`https://api.amazonvision.com`) and **Ring Developer Playground** enable secure server-to-server device discovery, status retrieval, WebRTC streaming, and event webhooks without brittle unofficial scrapers.
-
----
-
-## 3. What Is Currently Implemented (Phase 1)
-
-Phase 1 establishes the production-grade application skeleton and proves a **real Ring integration path**:
-
-- [x] **Ring Provider Abstraction (`src/ring/RingProvider.ts`)**: Decouples Ring vendor hardware APIs from OpenWay's domain accessibility policy.
-- [x] **Ring Developer Playground Integration (`src/ring/RingPlaygroundProvider.ts`)**: Server-side client utilizing short-lived access tokens from the official Ring Developer Playground.
-- [x] **Production Ring Partner API Client (`src/ring/RingApiProvider.ts` & `src/ring/RingClient.ts`)**: Server-to-server HTTP client with correlation IDs, timeout protection, bounded exponential backoff retries, and strict secret masking.
-- [x] **Deterministic Local Simulator (`src/ring/RingSimulatorProvider.ts`)**: Full offline mock provider simulating Ring hardware events (`MOTION_EVENT`, `PACKAGE_EVENT`, `DEVICE_ONLINE`, `DEVICE_OFFLINE`, SVG live snapshots).
-- [x] **Ring Webhook Ingestion Engine (`src/ring/webhook.ts` & `POST /api/ring/webhook`)**: Validates HMAC-SHA256 signatures (`X-Signature`), implements idempotent deduplication caching, normalizes incoming events into provider-neutral models, and responds in <50ms.
-- [x] **Operator Interface**: Accessible, WCAG 2.2 AA compliant dashboard displaying connection status, discovered Ring devices, capability badges, entrance assurance status, and live Ring observation streams.
-- [x] **Automated Test Suite**: 35 unit and integration tests across Ring clients, HMAC webhooks, API routes, and React components.
+1. **Ubiquitous Hardware Footprint**: Millions of businesses already deploy Ring video doorbells, Floodlight Cams, and Stick Up Cams at their entrances.
+2. **High-Fidelity Telemetry**: Ring provides motion events, image snapshots, media clips, and two-way audio.
+3. **Official Developer Platform**: The **Amazon Ring Partner API** (`https://api.amazonvision.com`) and **Ring Developer Playground** enable secure server-to-server device discovery, status retrieval, and event webhooks without brittle unofficial scrapers.
 
 ---
 
 ## 4. How to Configure the Ring Playground Token
 
-All Ring credentials remain strictly server-side and are **never exposed to the browser client**.
+All Ring credentials remain strictly server-side and are **never exposed to client JavaScript**.
 
 1. Copy `.env.example` to `.env.local`:
    ```bash
    cp .env.example .env.local
    ```
 2. Log in to the [Amazon Ring Developer Portal](https://developer.ring.com) and navigate to the **Developer Playground**.
-3. Generate a short-lived Access Token (typically valid for ~30 minutes).
+3. Generate a short-lived Access Token (valid for ~30–60 minutes in the Playground environment).
 4. Update your `.env.local`:
    ```env
    OPENWAY_PROVIDER=playground
    RING_ACCESS_TOKEN=your_short_lived_playground_token_here
    RING_API_BASE_URL=https://api.amazonvision.com
+   RING_OAUTH_BASE_URL=https://oauth.ring.com
    RING_WEBHOOK_SECRET=your_hmac_webhook_secret
    ```
 
@@ -75,7 +82,7 @@ All Ring credentials remain strictly server-side and are **never exposed to the 
 # 1. Install dependencies
 npm install
 
-# 2. Run test suite
+# 2. Run test suite (39 tests)
 npm run test
 
 # 3. Verify TypeScript type safety
@@ -99,6 +106,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 1. **Simulator Mode (Default)**:
    - When `OPENWAY_PROVIDER=simulator`, the UI displays `Ring Connection: SIMULATED` with amber badges.
+   - All simulated evidence is honestly stamped: `SIMULATED - LOCAL TEST EVIDENCE`.
    - Use the **Deterministic Simulator Workbench** in the UI to trigger motion, delivery obstructions, or toggle devices online/offline.
 2. **Playground Mode**:
    - Set `OPENWAY_PROVIDER=playground` with a valid token in `.env.local` (or click "Playground" in the dashboard's mode selector).
@@ -114,27 +122,27 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 | Feature | Ring Playground / Partner API | Local Simulator |
 | :--- | :--- | :--- |
-| **Device Discovery** | Real devices retrieved via `GET /v1/devices` | Deterministic mock accessibility cameras |
-| **Device Status** | Real-time status via `GET /v1/devices/{id}/status` | Interactive online/offline toggle |
-| **Capabilities** | Live capabilities via `GET /v1/devices/{id}/capabilities` | Full 4-capability simulation |
-| **Snapshots** | Camera snapshots via `GET /v1/devices/{id}/snapshot` | Synthetic accessible ramp perspective SVG |
-| **Webhooks** | Real Ring HMAC-signed webhook delivery | Synthetic event simulation dispatch |
-| **UI Badge** | `CONNECTED (REAL RING)` / `RING LIVE` | `SIMULATED` / `[SIM]` |
+| **Device Discovery** | Real devices retrieved via JSON:API `GET /v1/devices?include=status,capabilities` | Deterministic mock accessibility cameras |
+| **Device Status** | Real-time status via `GET /v1/devices/{id}/status` or compound document | Interactive online/offline toggle |
+| **Capabilities** | Live capabilities via `GET /v1/devices/{id}/capabilities` or compound document | Full 4-capability simulation |
+| **Image Evidence** | `POST /v1/devices/{id}/media/image/download` | Synthetic accessible ramp perspective SVG labeled `SIMULATED` |
+| **Webhooks** | Real Ring HMAC-signed webhook delivery (v1.1 schema) | Synthetic event simulation dispatch |
+| **UI Badge** | `CONNECTED (REAL RING)` / `RING LIVE TELEMETRY` | `SIMULATED` / `SIMULATED LOCAL EVENT` |
 
 ---
 
-## 8. Current Limitations (Phase 1)
+## 8. Current Limitations (Phase 1.1)
 
-1. **Short-Lived Playground Tokens**: Playground tokens expire in ~30–60 minutes and require manual refresh until the full OAuth 2.0 Account Linking flow is completed in Phase 2.
+1. **Short-Lived Playground Tokens**: Playground tokens expire in ~30–60 minutes and require manual re-issuing until the full OAuth 2.0 Account Linking flow is completed in Phase 2.
 2. **Single-Venue Scope**: Phase 1 demonstrates entrance assurance for a single configured venue.
-3. **Synthetic Evidence Mock for Simulator**: In simulator mode, visual evidence uses vector SVG perspective views of accessible ramps rather than video streams.
+3. **Hardware Live Evidence Verification**: Image evidence conforms to official `POST /v1/devices/{id}/media/image/download` specification; live-testing requires an active Ring account with granted media permissions.
 4. **Scope Limitations**: OpenWay only verifies camera-observable physical conditions explicitly configured by the venue (e.g. ramp clearance, doorway paths). It does **not** certify compliance with overall municipal or legal building codes.
 
 ---
 
 ## 9. Planned Next Phase (Phase 2)
 
-- **Automated Evidence AI Pipeline**: Integrate Amazon Bedrock / lightweight Vision AI to inspect fresh Ring snapshots for physical obstruction clearance.
+- **Automated Evidence AI Pipeline**: Integrate Amazon Bedrock / multimodal Vision AI to inspect fresh Ring snapshots for physical obstruction clearance.
 - **Full OAuth 2.0 Account Linking**: Enable venue owners to link Ring accounts with persistent refresh tokens via Ring Appstore.
 - **Dispatch & Remediation Flow**: Automated SMS/Slack notification to on-duty staff when an obstruction is detected, with a one-click "I Cleared It" verification trigger.
 - **Multi-Entrance Coverage**: Simultaneous assurance across main ramps, automatic doors, elevators, and accessible parking paths.

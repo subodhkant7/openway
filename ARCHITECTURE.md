@@ -35,7 +35,7 @@ graph TD
 
     subgraph Upstream ["Amazon Ring Infrastructure"]
         Client -->|Bearer Auth / Server-to-Server| AVA["api.amazonvision.com"]
-        AVA -.->|X-Signature Webhooks| Webhook
+        AVA -.->|X-Signature Webhooks v1.1| Webhook
         AVA --> Hardware["Ring Doorbells & Cameras"]
     end
 ```
@@ -51,12 +51,12 @@ Ring integration != Accessibility policy
 ```
 
 1. **The Ring Layer supplies observations, events, and evidence**:
-   - Device discovery and status
-   - Motion detection notifications
-   - Image snapshots and video clips
-   - Two-way audio capabilities
+   - Device discovery and status via JSON:API compound documents (`GET /v1/devices?include=status,capabilities`)
+   - Motion detection notifications and doorbell events via Webhook v1.1
+   - Image snapshots via `POST /v1/devices/{device_id}/media/image/download`
+   - Two-way audio and WebRTC live view capabilities
 
-2. **The Domain Layer determines accessibility state**:
+2. **The Domain Layer verifies configured, camera-observable access conditions**:
    - Maps camera observations to configured accessibility paths (e.g. wheelchair ramp, automatic sliding door).
    - Manages assurance lifecycle (`UNCONFIGURED` -> `ASSURED` -> `INTERRUPTED` -> `PENDING_VERIFICATION` -> `ASSURED`).
    - Enforces the core principle: **"An alert is not a resolution. A resolution is not verified until new evidence proves the physical state changed."**
@@ -68,9 +68,9 @@ Ring integration != Accessibility policy
 
 ### 1. Provider Boundary (`src/ring/`)
 
-- `RingProvider.ts`: Strongly typed interface defining device discovery, capabilities, status queries, snapshot retrieval, and event normalization.
-- `RingPlaygroundProvider.ts`: Integrates with the Amazon Ring Developer Playground using short-lived developer tokens.
-- `RingApiProvider.ts`: Production-ready Ring Partner API provider configured for OAuth 2.0 refresh tokens.
+- `RingProvider.ts`: Strongly typed interface defining device discovery, capabilities, status queries, `getImageEvidence`, and event normalization.
+- `RingPlaygroundProvider.ts`: Integrates with the Amazon Ring Developer Playground using short-lived developer tokens (~30–60 min).
+- `RingApiProvider.ts`: Production-ready Ring Partner API provider configured for OAuth 2.0 refresh tokens (`https://oauth.ring.com`).
 - `RingSimulatorProvider.ts`: In-memory deterministic simulator allowing complete offline testing, local demonstrations, and edge case reproduction.
 - `RingClient.ts`: Server-side fetch client featuring:
   - Strict server-to-server isolation (credentials never reach client JavaScript).
@@ -78,17 +78,19 @@ Ring integration != Accessibility policy
   - Configurable timeouts (`AbortController`).
   - Bounded exponential backoff retries with jitter for 429 and 5xx errors (never retrying 401 or 403).
   - Sanitized structured logging preventing token or secret leakage.
+  - Media download handler for `POST /v1/devices/{id}/media/image/download` supporting HTTP `303 See Other` redirects and binary streams.
 
 ### 2. Webhook Ingestion Engine (`src/ring/webhook.ts`)
 
 - **Signature Verification**: Verifies incoming `X-Signature` headers using HMAC-SHA256 and constant-time buffer comparison (`crypto.timingSafeEqual`) to eliminate timing attack vectors.
-- **Idempotency Cache**: Maintains a sliding 1-hour in-memory cache of processed `event_id`s to gracefully swallow duplicate deliveries without duplicate alert storms.
+- **Idempotency Cache**: Maintains a sliding 1-hour in-memory cache of processed `meta.request_id` values to gracefully swallow duplicate deliveries without duplicate alert storms.
 - **Immediate Response**: Responds to Ring with HTTP 200/202 in <50ms, delegating background normalization.
 
 ### 3. Domain Model (`src/domain/accessibility.ts`)
 
 - `EntranceAssuranceStatus`: `ASSURED`, `INTERRUPTED`, `PENDING_VERIFICATION`, `UNCONFIGURED`, `DEGRADED`.
 - `canDeclareRestored()`: Algorithmic gatekeeper ensuring that an interrupted state can only be marked resolved if fresh physical evidence was captured strictly **after** the interruption began, and proves the physical state changed.
+- **Scope Boundary**: Evaluates explicitly configured entrance pathways only; does not certify municipal building-code compliance.
 
 ---
 

@@ -53,12 +53,13 @@ To connect OpenWay to live Ring devices via the Amazon Vision API:
 
 1. Navigate to the [Ring Developer Portal](https://developer.ring.com) and sign in.
 2. Go to **Developer Playground**.
-3. Generate a temporary Access Token.
+3. Generate a temporary Access Token (valid for ~30–60 minutes in the Playground environment).
 4. Edit your `.env.local`:
    ```env
    OPENWAY_PROVIDER=playground
    RING_ACCESS_TOKEN=your_token_here
    RING_API_BASE_URL=https://api.amazonvision.com
+   RING_OAUTH_BASE_URL=https://oauth.ring.com
    ```
 5. Restart your dev server or click the **"Playground"** button in the dashboard's mode switcher.
 6. Click **"Verify"** to test live device discovery.

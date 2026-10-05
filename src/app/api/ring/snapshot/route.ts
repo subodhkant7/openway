@@ -24,15 +24,15 @@ export async function GET(request: NextRequest) {
     }
 
     const provider = getRingProvider(modeParam || undefined);
-    const snapshot = await provider.getSnapshot(deviceId);
+    const imageEvidence = await provider.getImageEvidence(deviceId);
 
-    if (!snapshot) {
+    if (!imageEvidence) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: "MEDIA_UNAVAILABLE",
-            message: `Snapshot not available for device ${deviceId}`,
+            message: `Visual observation evidence is currently unavailable for device ${deviceId}`,
           },
         },
         { status: 404 }
@@ -41,10 +41,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      snapshot,
+      imageEvidence,
+      // Backward-compatible snapshot alias
+      snapshot: imageEvidence,
     });
   } catch (err: unknown) {
-    safeLog("error", "Error retrieving Ring snapshot", {
+    safeLog("error", "Error retrieving Ring image evidence", {
       error: err instanceof Error ? err.message : "Unknown",
     });
 

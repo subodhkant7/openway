@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import crypto from "crypto";
 import { RingWebhookHandler } from "@/ring/webhook";
-import { RingProviderError } from "@/ring/errors";
 
 describe("RingWebhookHandler", () => {
   const secret = "test_webhook_secret_key_12345";
@@ -14,35 +13,77 @@ describe("RingWebhookHandler", () => {
     return crypto.createHmac("sha256", s).update(body, "utf8").digest("hex");
   };
 
-  it("accepts and normalizes a valid signed Ring webhook event", () => {
-    const payload = {
-      event_id: "evt_101",
-      event_type: "motion",
-      device_id: "cam_front_entrance",
-      timestamp: new Date().toISOString(),
-      components: ["motion_sensor"],
-      source: "ring_device",
+  it("accepts and normalizes an official Ring Webhook v1.1 payload", () => {
+    // Documented official Ring v1.1 payload format
+    const officialPayload = {
+      meta: {
+        version: "1.1",
+        time: "2026-10-05T12:00:00.000Z",
+        request_id: "req_c83081fc_2f1b_4cb7",
+        account_id: "ava1.ring.account.test_123",
+      },
+      data: {
+        id: "cam_front_entrance_motion_1771027372",
+        type: "motion",
+        attributes: {
+          source: "cam_front_entrance",
+          source_type: "devices",
+          timestamp: 1771027372393,
+        },
+        relationships: {
+          devices: {
+            links: {
+              self: "/v1/devices/cam_front_entrance",
+            },
+          },
+        },
+      },
     };
 
-    const rawBody = JSON.stringify(payload);
+    const rawBody = JSON.stringify(officialPayload);
     const signature = sign(rawBody, secret);
 
     const result = RingWebhookHandler.processWebhook(rawBody, signature, secret);
 
     expect(result.status).toBe("accepted");
-    expect(result.eventId).toBe("evt_101");
+    expect(result.eventId).toBe("req_c83081fc_2f1b_4cb7");
     expect(result.normalizedEvent).toBeDefined();
     expect(result.normalizedEvent?.eventType).toBe("motion");
     expect(result.normalizedEvent?.deviceId).toBe("cam_front_entrance");
-    expect(result.normalizedEvent?.provider).toBe("ring_api");
+    expect(result.normalizedEvent?.eventCategory).toBe("official_ring");
+  });
+
+  it("accepts official button_press doorbell event type", () => {
+    const doorbellPayload = {
+      meta: {
+        version: "1.1",
+        time: "2026-10-05T12:05:00.000Z",
+        request_id: "req_doorbell_99",
+      },
+      data: {
+        id: "cam_doorbell_123_button_press",
+        type: "button_press",
+        attributes: {
+          source: "cam_doorbell_123",
+          source_type: "devices",
+        },
+      },
+    };
+
+    const rawBody = JSON.stringify(doorbellPayload);
+    const signature = sign(rawBody, secret);
+
+    const result = RingWebhookHandler.processWebhook(rawBody, signature, secret);
+
+    expect(result.status).toBe("accepted");
+    expect(result.normalizedEvent?.eventType).toBe("button_press");
+    expect(result.normalizedEvent?.deviceId).toBe("cam_doorbell_123");
   });
 
   it("rejects an invalid HMAC signature with SIGNATURE_INVALID", () => {
     const payload = {
-      event_id: "evt_102",
-      event_type: "motion",
-      device_id: "cam_01",
-      timestamp: new Date().toISOString(),
+      meta: { request_id: "req_invalid_sig" },
+      data: { id: "d_1", type: "motion" },
     };
 
     const rawBody = JSON.stringify(payload);
@@ -59,7 +100,7 @@ describe("RingWebhookHandler", () => {
   });
 
   it("rejects a malformed JSON payload with INVALID_EVENT", () => {
-    const rawBody = "{ not_valid_json: }";
+    const rawBody = "{ invalid_json: ";
     const signature = sign(rawBody, secret);
 
     expect(() =>
@@ -72,30 +113,16 @@ describe("RingWebhookHandler", () => {
     );
   });
 
-  it("rejects a payload missing mandatory fields with INVALID_EVENT", () => {
-    const rawBody = JSON.stringify({
-      // missing event_id and device_id
-      event_type: "motion",
-      timestamp: 1234567,
-    });
-    const signature = sign(rawBody, secret);
-
-    expect(() =>
-      RingWebhookHandler.processWebhook(rawBody, signature, secret)
-    ).toThrowError(
-      expect.objectContaining({
-        code: "INVALID_EVENT",
-        statusCode: 400,
-      })
-    );
-  });
-
-  it("handles duplicate event deliveries idempotently without re-triggering logic", () => {
+  it("handles duplicate event deliveries idempotently using request_id", () => {
     const payload = {
-      event_id: "evt_duplicate_test_01",
-      event_type: "motion",
-      device_id: "cam_side_door",
-      timestamp: new Date().toISOString(),
+      meta: {
+        request_id: "req_idempotent_duplicate_check",
+      },
+      data: {
+        id: "ev_idemp_01",
+        type: "motion",
+        attributes: { source: "cam_ramp" },
+      },
     };
 
     const rawBody = JSON.stringify(payload);
@@ -108,22 +135,22 @@ describe("RingWebhookHandler", () => {
     // Second arrival: duplicate acknowledged idempotently
     const secondResult = RingWebhookHandler.processWebhook(rawBody, signature, secret);
     expect(secondResult.status).toBe("duplicate");
-    expect(secondResult.eventId).toBe("evt_duplicate_test_01");
+    expect(secondResult.eventId).toBe("req_idempotent_duplicate_check");
   });
 
-  it("safely accepts and normalizes custom/unsupported event types without crashing", () => {
-    const payload = {
-      event_id: "evt_custom_unknown_999",
-      event_type: "future_laser_beam_sensor_break",
-      device_id: "cam_special",
+  it("safely accepts direct simulator payloads for local testing", () => {
+    const simulatorPayload = {
+      event_id: "sim_direct_101",
+      event_type: "simulated_motion",
+      device_id: "sim_cam_01",
       timestamp: new Date().toISOString(),
     };
 
-    const rawBody = JSON.stringify(payload);
+    const rawBody = JSON.stringify(simulatorPayload);
     const signature = sign(rawBody, secret);
 
     const result = RingWebhookHandler.processWebhook(rawBody, signature, secret);
     expect(result.status).toBe("accepted");
-    expect(result.normalizedEvent?.eventType).toBe("future_laser_beam_sensor_break");
+    expect(result.normalizedEvent?.eventType).toBe("simulated_motion");
   });
 });

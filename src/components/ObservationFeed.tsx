@@ -69,13 +69,17 @@ export function ObservationFeed({
                 <span className="capitalize">{latest.eventType.replace("_", " ")}</span>
               </span>
               <div className="flex items-center gap-2">
-                {latest.provider === "simulator" || activeMode === "simulator" ? (
+                {latest.eventCategory === "simulated_local" || latest.provider === "simulator" || activeMode === "simulator" ? (
                   <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
-                    SIMULATED
+                    SIMULATED LOCAL EVENT
+                  </span>
+                ) : latest.eventCategory === "openway_domain" ? (
+                  <span className="rounded bg-purple-500/10 px-2 py-0.5 text-[10px] font-bold text-purple-300 border border-purple-500/30">
+                    DOMAIN ASSURANCE
                   </span>
                 ) : (
                   <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30">
-                    RING LIVE
+                    RING LIVE TELEMETRY
                   </span>
                 )}
                 <time className="text-xs text-slate-400 font-mono">

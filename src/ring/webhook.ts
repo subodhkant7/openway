@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { RingEvent } from "./types";
 import { RingProviderError, safeLog } from "./errors";
-import { RawRingWebhookPayloadSchema } from "./validation";
+import { RingWebhookPayloadSchema } from "./validation";
 
 export interface WebhookVerificationResult {
   isValid: boolean;
@@ -16,7 +16,7 @@ export interface WebhookProcessResult {
 }
 
 export class RingWebhookHandler {
-  // In-memory deduplication cache storing seen event IDs with expiration timestamps (TTL: 1 hour)
+  // In-memory deduplication cache storing seen event IDs / request IDs with expiration timestamps (TTL: 1 hour)
   private static processedEvents = new Map<string, number>();
   private static readonly TTL_MS = 60 * 60 * 1000;
 
@@ -30,7 +30,7 @@ export class RingWebhookHandler {
   ): WebhookVerificationResult {
     const webhookSecret = secret || process.env.RING_WEBHOOK_SECRET;
 
-    // If no secret configured in development, allow if explicitly in simulator mode
+    // If no secret configured in development, allow if explicitly in simulator or test mode
     if (!webhookSecret) {
       if (process.env.OPENWAY_PROVIDER === "simulator" || process.env.NODE_ENV === "test") {
         return { isValid: true };
@@ -101,7 +101,7 @@ export class RingWebhookHandler {
       });
     }
 
-    // 2. Parse & Validate Payload
+    // 2. Parse & Validate Payload against official Ring schema
     let rawPayload: unknown;
     try {
       rawPayload = JSON.parse(rawBody);
@@ -113,7 +113,7 @@ export class RingWebhookHandler {
       });
     }
 
-    const parseResult = RawRingWebhookPayloadSchema.safeParse(rawPayload);
+    const parseResult = RingWebhookPayloadSchema.safeParse(rawPayload);
     if (!parseResult.success) {
       throw new RingProviderError({
         code: "INVALID_EVENT",
@@ -123,14 +123,67 @@ export class RingWebhookHandler {
     }
 
     const payload = parseResult.data;
-    const eventId = payload.event_id;
+
+    // Distinguish official v1.1 structure vs direct schema
+    let eventId: string;
+    let eventType: string;
+    let deviceId: string;
+    let timestamp: string;
+    let components: string[] = [];
+
+    if ("data" in payload && Boolean(payload.data)) {
+      // Official Ring Webhook v1.1 structure
+      const official = payload as {
+        meta?: { version?: string; time?: string; request_id?: string; account_id?: string };
+        data: {
+          id: string;
+          type: string;
+          attributes?: {
+            source?: string;
+            source_type?: string;
+            timestamp?: string | number;
+            event_type?: string;
+          };
+          relationships?: Record<string, unknown>;
+        };
+      };
+      const meta = official.meta || {};
+      const data = official.data;
+      const attrs = data.attributes || {};
+
+      // Unique event / request ID for deduplication
+      eventId = meta.request_id || data.id;
+      eventType = attrs.event_type || data.type || "motion";
+      deviceId = attrs.source || "unknown_device";
+
+      const rawTime = attrs.timestamp || meta.time || Date.now();
+      timestamp = typeof rawTime === "number" ? new Date(rawTime).toISOString() : String(rawTime);
+      components = ["camera"];
+    } else {
+      // Direct / Simulator schema
+      const direct = payload as {
+        event_id: string;
+        event_type: string;
+        device_id: string;
+        timestamp: string | number;
+        components?: string[];
+      };
+      eventId = direct.event_id;
+      eventType = direct.event_type;
+      deviceId = direct.device_id;
+      timestamp =
+        typeof direct.timestamp === "number"
+          ? new Date(direct.timestamp).toISOString()
+          : String(direct.timestamp);
+      components = direct.components || [];
+    }
 
     // 3. Idempotency Check
     if (this.processedEvents.has(eventId)) {
       safeLog("info", "Ring webhook duplicate event ignored idempotently", {
         eventId,
-        eventType: payload.event_type,
-        deviceId: payload.device_id,
+        eventType,
+        deviceId,
       });
 
       return {
@@ -146,27 +199,26 @@ export class RingWebhookHandler {
     // 4. Normalize Event Model
     const normalizedEvent: RingEvent = {
       provider: "ring_api",
+      eventCategory: "official_ring",
       eventId,
-      eventType: payload.event_type,
-      deviceId: payload.device_id,
-      timestamp:
-        typeof payload.timestamp === "number"
-          ? new Date(payload.timestamp).toISOString()
-          : String(payload.timestamp),
-      componentIds: payload.components || [],
-      source: payload.source || "ring_webhook",
+      eventType,
+      deviceId,
+      timestamp,
+      componentIds: components,
+      source: "ring_webhook_v1.1",
       receivedAt: new Date().toISOString(),
-      summary: `Ring webhook: ${payload.event_type} on device ${payload.device_id}`,
+      summary: `Ring webhook: ${eventType} on device ${deviceId}`,
       rawReference: {
-        eventType: payload.event_type,
-        deviceId: payload.device_id,
+        eventType,
+        deviceId,
+        eventId,
       },
     };
 
     safeLog("info", "Ring webhook event normalized successfully", {
       eventId,
-      eventType: payload.event_type,
-      deviceId: payload.device_id,
+      eventType,
+      deviceId,
     });
 
     return {

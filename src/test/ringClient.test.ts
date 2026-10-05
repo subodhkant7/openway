@@ -3,8 +3,6 @@ import { RingClient } from "@/ring/RingClient";
 import { RingProviderError } from "@/ring/errors";
 
 describe("RingClient", () => {
-  const originalFetch = global.fetch;
-
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -29,22 +27,26 @@ describe("RingClient", () => {
     );
   });
 
-  it("successfully retrieves and parses JSON from API endpoint", async () => {
+  it("successfully retrieves and parses JSON from API endpoint with JSON:API headers", async () => {
     const mockData = {
-      devices: [
-        { id: "dev_01", name: "Front Door", kind: "doorbell" },
+      data: [
+        {
+          id: "dev_01",
+          type: "device",
+          attributes: { name: "Front Door", kind: "doorbell" },
+        },
       ],
     };
 
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      headers: new Headers({ "content-type": "application/json" }),
+      headers: new Headers({ "content-type": "application/vnd.api+json" }),
       json: async () => mockData,
     });
 
     const client = new RingClient({ accessToken: "valid_token" });
-    const result = await client.request<{ devices: Array<{ id: string }> }>("/v1/devices");
+    const result = await client.request<{ data: Array<{ id: string }> }>("/v1/devices");
 
     expect(result).toEqual(mockData);
     expect(global.fetch).toHaveBeenCalledTimes(1);
@@ -53,6 +55,7 @@ describe("RingClient", () => {
     const callArgs = (global.fetch as any).mock.calls[0];
     const headers = callArgs[1].headers as Headers;
     expect(headers.get("Authorization")).toBe("Bearer valid_token");
+    expect(headers.get("Accept")).toContain("application/vnd.api+json");
     expect(headers.get("X-Correlation-Id")).toBeDefined();
   });
 
@@ -88,7 +91,7 @@ describe("RingClient", () => {
 
     const client = new RingClient({
       accessToken: "valid_token",
-      maxRetries: 0, // Zero retries to test immediate boundary response
+      maxRetries: 0,
     });
 
     await expect(client.request("/v1/devices")).rejects.toThrowError(
@@ -139,6 +142,66 @@ describe("RingClient", () => {
       expect.objectContaining({
         code: "RING_API_ERROR",
         statusCode: 502,
+      })
+    );
+  });
+
+  it("handles official POST /v1/devices/{id}/media/image/download with 303 redirect", async () => {
+    const preSignedUrl = "https://s3.amazonaws.com/ring-media-download/image_abc123.jpg";
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 303,
+      headers: new Headers({
+        Location: preSignedUrl,
+      }),
+    });
+
+    const client = new RingClient({ accessToken: "valid_token" });
+    const result = await client.downloadImage("/v1/devices/dev_123/media/image/download", {
+      components: ["camera"],
+    });
+
+    expect(result.url).toBe(preSignedUrl);
+    expect(result.format).toBe("image/jpeg");
+
+    // Verify correct POST method and body
+    const callArgs = (global.fetch as any).mock.calls[0];
+    expect(callArgs[1].method).toBe("POST");
+    expect(JSON.parse(callArgs[1].body)).toEqual({ components: ["camera"] });
+  });
+
+  it("handles official media image download with binary content response", async () => {
+    const dummyBuffer = Buffer.from("fake_image_bytes");
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({
+        "content-type": "image/jpeg",
+      }),
+      arrayBuffer: async () => dummyBuffer,
+    });
+
+    const client = new RingClient({ accessToken: "valid_token" });
+    const result = await client.downloadImage("/v1/devices/dev_123/media/image/download");
+
+    expect(result.dataUrl).toContain("data:image/jpeg;base64,");
+    expect(result.format).toBe("image/jpeg");
+  });
+
+  it("maps 404 on image download to MEDIA_UNAVAILABLE", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      headers: new Headers(),
+      text: async () => "Not Found",
+    });
+
+    const client = new RingClient({ accessToken: "valid_token" });
+    await expect(
+      client.downloadImage("/v1/devices/dev_123/media/image/download")
+    ).rejects.toThrowError(
+      expect.objectContaining({
+        code: "MEDIA_UNAVAILABLE",
       })
     );
   });

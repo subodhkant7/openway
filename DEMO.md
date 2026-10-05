@@ -51,9 +51,10 @@ This script walks through a complete, deterministic 3-minute demonstration of Op
 
 ---
 
-### 4. Fetch Fresh Camera Snapshot
-1. On *Main Accessible Ramp Entrance* in the **Ring Devices** list, click **"Fresh Snapshot"**.
+### 4. Fetch Fresh Camera Image Evidence
+1. On *Main Accessible Ramp Entrance* in the **Ring Devices** list, click **"Image Evidence"**.
 2. An inline preview displays the verified camera perspective showing the clear accessible ramp doorway and perspective lines with live UTC timestamp.
+3. Note the honest provenance badge: **`SIMULATED - LOCAL TEST EVIDENCE`** in simulator mode, or **`OFFICIAL RING MEDIA DOWNLOAD`** when connected via Ring Partner API.
 
 ---
 

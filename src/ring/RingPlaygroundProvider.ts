@@ -5,12 +5,14 @@ import {
   RingDeviceCapabilities,
   RingEvent,
   RingProviderStatus,
-  RingSnapshot,
+  RingImageEvidence,
+  JsonApiResource,
+  JsonApiDocument,
 } from "./types";
 import { RingProviderError, safeLog } from "./errors";
 
 export class RingPlaygroundProvider implements RingProvider {
-  private client: RingClient;
+  protected client: RingClient;
 
   constructor(client?: RingClient) {
     this.client = client ?? new RingClient();
@@ -28,7 +30,7 @@ export class RingPlaygroundProvider implements RingProvider {
         isConfigured: false,
         baseUrl,
         lastCheck: now,
-        details: "RING_ACCESS_TOKEN is not configured. Provide a playground token in .env.local",
+        details: "RING_ACCESS_TOKEN is not configured. Provide a short-lived playground token in .env.local",
         activeDeviceCount: 0,
       };
     }
@@ -41,7 +43,7 @@ export class RingPlaygroundProvider implements RingProvider {
         isConfigured: true,
         baseUrl,
         lastCheck: now,
-        details: `Successfully connected to Ring Playground via ${baseUrl}`,
+        details: `Connected to Ring Playground via ${baseUrl} (short-lived access token mode)`,
         activeDeviceCount: devices.filter((d) => d.online).length,
       };
     } catch (err: unknown) {
@@ -66,6 +68,10 @@ export class RingPlaygroundProvider implements RingProvider {
     }
   }
 
+  /**
+   * Discovers devices using JSON:API compound document request:
+   * GET /v1/devices?include=status,capabilities
+   */
   public async listDevices(): Promise<RingDevice[]> {
     if (!this.client.hasToken()) {
       throw new RingProviderError({
@@ -75,7 +81,10 @@ export class RingPlaygroundProvider implements RingProvider {
     }
 
     try {
-      const response = await this.client.request<unknown>("/v1/devices");
+      // Query devices with compound status and capabilities included
+      const response = await this.client.request<JsonApiDocument<JsonApiResource[]>>(
+        "/v1/devices?include=status,capabilities"
+      );
       return this.normalizeDevicesResponse(response);
     } catch (error) {
       safeLog("error", "Failed to list Ring devices from Playground", {
@@ -88,16 +97,23 @@ export class RingPlaygroundProvider implements RingProvider {
   public async getDeviceStatus(deviceId: string): Promise<RingDevice["status"]> {
     try {
       const response = await this.client.request<{
+        data?: {
+          attributes?: {
+            state?: string;
+            online?: boolean;
+            status?: string;
+          };
+        };
         state?: string;
         online?: boolean;
-        status?: string;
       }>(`/v1/devices/${encodeURIComponent(deviceId)}/status`);
 
-      if (response.online !== undefined) {
-        return response.online ? "online" : "offline";
+      const attrs = response.data?.attributes || response;
+      if (attrs.online !== undefined) {
+        return attrs.online ? "online" : "offline";
       }
-      if (response.state) {
-        return response.state.toLowerCase() === "online" ? "online" : "offline";
+      if (attrs.state) {
+        return attrs.state.toLowerCase() === "online" ? "online" : "offline";
       }
       return "online";
     } catch {
@@ -107,13 +123,15 @@ export class RingPlaygroundProvider implements RingProvider {
 
   public async getDeviceCapabilities(deviceId: string): Promise<RingDeviceCapabilities> {
     try {
-      const response = await this.client.request<Record<string, unknown>>(
-        `/v1/devices/${encodeURIComponent(deviceId)}/capabilities`
-      );
+      const response = await this.client.request<
+        JsonApiDocument<JsonApiResource> | Record<string, unknown>
+      >(`/v1/devices/${encodeURIComponent(deviceId)}/capabilities`);
 
-      return this.normalizeCapabilities(response);
+      const resource = (response as JsonApiDocument<JsonApiResource>).data;
+      const attrs = resource?.attributes || (response as Record<string, unknown>);
+
+      return this.normalizeCapabilities(attrs);
     } catch {
-      // Default baseline capabilities for Ring video devices
       return {
         supports_live_video: true,
         supports_snapshots: true,
@@ -130,11 +148,11 @@ export class RingPlaygroundProvider implements RingProvider {
         : `/v1/events?limit=${limit}`;
 
       const response = await this.client.request<{
-        events?: Array<Record<string, unknown>>;
         data?: Array<Record<string, unknown>>;
+        events?: Array<Record<string, unknown>>;
       }>(endpoint);
 
-      const rawEvents = response.events || response.data || [];
+      const rawEvents = response.data || response.events || [];
       return rawEvents.map((raw) => this.normalizeEvent(raw));
     } catch (err) {
       safeLog("warn", "Event retrieval not supported or empty in current Playground scope", {
@@ -145,88 +163,147 @@ export class RingPlaygroundProvider implements RingProvider {
     }
   }
 
-  public async getSnapshot(deviceId: string): Promise<RingSnapshot | null> {
+  /**
+   * Conforms to official Ring Partner API Image Download specification:
+   * POST /v1/devices/{device_id}/media/image/download
+   */
+  public async getImageEvidence(
+    deviceId: string,
+    components: string[] = ["camera"]
+  ): Promise<RingImageEvidence | null> {
     try {
-      const response = await this.client.request<{
-        url?: string;
-        image_url?: string;
-        captured_at?: string;
-        timestamp?: string;
-      }>(`/v1/devices/${encodeURIComponent(deviceId)}/snapshot`);
-
-      const url = response.url || response.image_url;
-      if (!url) return null;
+      const endpoint = `/v1/devices/${encodeURIComponent(deviceId)}/media/image/download`;
+      const result = await this.client.downloadImage(endpoint, { components });
 
       return {
         deviceId,
-        url,
-        capturedAt: response.captured_at || response.timestamp || new Date().toISOString(),
+        url: result.url,
+        dataUrl: result.dataUrl,
+        capturedAt: new Date().toISOString(),
+        format: result.format,
+        source: "ring_media_download",
+        isSimulated: false,
       };
-    } catch {
+    } catch (err) {
+      safeLog("warn", "Image download not available for device", {
+        deviceId,
+        error: err instanceof Error ? err.message : "Unknown",
+      });
       return null;
     }
   }
 
   public normalizeEvent(raw: Record<string, unknown>): RingEvent {
-    const eventId = String(raw.id || raw.event_id || `ev_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
-    const eventType = String(raw.type || raw.event_type || "motion");
-    const deviceId = String(raw.device_id || raw.deviceId || "unknown_device");
-    const timestamp = String(raw.timestamp || raw.created_at || raw.recorded_at || new Date().toISOString());
+    // Check if JSON:API resource envelope is present
+    const resource = (raw.data as Record<string, unknown>) || raw;
+    const attributes = (resource.attributes as Record<string, unknown>) || resource;
+
+    const eventId = String(
+      resource.id || raw.id || raw.event_id || `ev_${Date.now()}`
+    );
+    const eventType = String(
+      resource.type || attributes.event_type || attributes.type || raw.type || raw.event_type || "motion"
+    );
+    const deviceId = String(
+      attributes.source || attributes.device_id || raw.device_id || raw.deviceId || "unknown_device"
+    );
+    const timestamp = String(
+      attributes.timestamp || raw.timestamp || raw.created_at || new Date().toISOString()
+    );
 
     return {
       provider: "ring_playground",
+      eventCategory: "official_ring",
       eventId,
       eventType,
       deviceId,
       timestamp,
-      componentIds: Array.isArray(raw.components) ? raw.components.map(String) : [],
+      componentIds: Array.isArray(raw.components) ? raw.components.map(String) : ["camera"],
       source: "ring_playground_api",
       receivedAt: new Date().toISOString(),
-      summary: `Playground event: ${eventType} on device ${deviceId}`,
-      rawReference: {
-        eventType,
-        deviceId,
-        timestamp,
-      },
+      summary: `Ring official event: ${eventType} on device ${deviceId}`,
+      rawReference: raw,
     };
   }
 
+  /**
+   * JSON:API Normalization Engine:
+   * Correctly resolves `data`, `attributes`, `relationships`, and compound `included` resources.
+   */
   private normalizeDevicesResponse(response: unknown): RingDevice[] {
     if (!response || typeof response !== "object") return [];
 
-    let rawList: Array<Record<string, unknown>> = [];
+    const doc = response as JsonApiDocument<JsonApiResource[]>;
 
-    if (Array.isArray(response)) {
-      rawList = response as Array<Record<string, unknown>>;
-    } else {
-      const obj = response as Record<string, unknown>;
-      if (Array.isArray(obj.devices)) {
-        rawList = obj.devices as Array<Record<string, unknown>>;
-      } else if (Array.isArray(obj.data)) {
-        rawList = obj.data.map((item) => {
-          const itemObj = item as Record<string, unknown>;
-          return {
-            id: itemObj.id,
-            ...(typeof itemObj.attributes === "object" ? itemObj.attributes : {}),
-            ...itemObj,
-          };
-        });
+    // Index compound included resources by "type:id"
+    const includedMap = new Map<string, Record<string, unknown>>();
+    if (Array.isArray(doc.included)) {
+      for (const item of doc.included) {
+        if (item.id && item.type) {
+          includedMap.set(`${item.type}:${item.id}`, item.attributes || {});
+        }
       }
     }
 
+    let rawList: JsonApiResource[] = [];
+
+    if (Array.isArray(doc.data)) {
+      rawList = doc.data;
+    } else if (Array.isArray((response as Record<string, unknown>).devices)) {
+      // Legacy fallback
+      rawList = ((response as Record<string, unknown>).devices as Array<Record<string, unknown>>).map((d) => ({
+        id: String(d.id),
+        type: "device",
+        attributes: d,
+      }));
+    } else if (Array.isArray(response)) {
+      rawList = response as JsonApiResource[];
+    }
+
     return rawList.map((item) => {
-      const id = String(item.id || item.device_id || "unknown");
-      const name = String(item.name || item.description || `Ring Device ${id.slice(-4)}`);
-      const kind = String(item.kind || item.device_type || item.type || "camera");
-      
-      let isOnline = true;
-      if (item.status && typeof item.status === "object") {
-        const s = item.status as Record<string, unknown>;
-        if (s.online !== undefined) isOnline = Boolean(s.online);
-        else if (s.state) isOnline = String(s.state).toLowerCase() === "online";
-      } else if (typeof item.status === "string") {
-        isOnline = item.status.toLowerCase() === "online";
+      const id = String(item.id);
+      const attrs = item.attributes || {};
+      const rels = item.relationships || {};
+
+      // Name: prioritize user-assigned name
+      const name = String(
+        attrs.name || attrs.description || attrs.user_name || `Ring Camera ${id.slice(-4)}`
+      );
+      const kind = String(attrs.kind || attrs.device_type || attrs.model || item.type || "camera");
+
+      // Resolve status relationship from compound included document
+      let statusAttrs: Record<string, unknown> = {};
+      const statusRel = rels.status?.data;
+      if (statusRel && !Array.isArray(statusRel) && statusRel.id) {
+        statusAttrs = includedMap.get(`status:${statusRel.id}`) || {};
       }
+
+      // Check online status from status relationship or direct attributes
+      let isOnline = true;
+      if (statusAttrs.online !== undefined) {
+        isOnline = Boolean(statusAttrs.online);
+      } else if (statusAttrs.state) {
+        isOnline = String(statusAttrs.state).toLowerCase() === "online";
+      } else if (attrs.online !== undefined) {
+        isOnline = Boolean(attrs.online);
+      } else if (attrs.status && typeof attrs.status === "object") {
+        const s = attrs.status as Record<string, unknown>;
+        isOnline = s.online !== undefined ? Boolean(s.online) : String(s.state).toLowerCase() === "online";
+      }
+
+      // Resolve capabilities relationship from compound included document
+      let capsAttrs: unknown = attrs.capabilities;
+      const capsRel = rels.capabilities?.data;
+      if (capsRel && !Array.isArray(capsRel) && capsRel.id) {
+        capsAttrs = includedMap.get(`capabilities:${capsRel.id}`) || capsAttrs;
+      }
+
+      const battery =
+        typeof statusAttrs.battery_level === "number"
+          ? statusAttrs.battery_level
+          : typeof attrs.battery_level === "number"
+          ? attrs.battery_level
+          : undefined;
 
       return {
         id,
@@ -234,10 +311,10 @@ export class RingPlaygroundProvider implements RingProvider {
         kind,
         online: isOnline,
         status: isOnline ? "online" : "offline",
-        capabilities: this.normalizeCapabilities(item.capabilities),
-        components: Array.isArray(item.components) ? item.components.map(String) : ["camera"],
-        batteryLevel: typeof item.battery_level === "number" ? item.battery_level : undefined,
-        locationId: item.location_id ? String(item.location_id) : undefined,
+        capabilities: this.normalizeCapabilities(capsAttrs),
+        components: Array.isArray(attrs.components) ? attrs.components.map(String) : ["camera"],
+        batteryLevel: battery,
+        locationId: attrs.location_id ? String(attrs.location_id) : undefined,
       };
     });
   }
