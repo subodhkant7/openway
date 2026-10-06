@@ -209,13 +209,21 @@ export class InMemoryStorageProvider implements StorageProvider {
     findLatestByEntranceId: async (entranceId: string) => {
       const all = Array.from(this.assessmentsMap.values())
         .filter((a) => a.entranceId === entranceId)
-        .sort((a, b) => new Date(b.assessedAt).getTime() - new Date(a.assessedAt).getTime());
+        .sort((a, b) => {
+          const diff = new Date(b.assessedAt).getTime() - new Date(a.assessedAt).getTime();
+          if (diff !== 0) return diff;
+          return b.id.localeCompare(a.id);
+        });
       return all[0] || null;
     },
     listByEntranceId: async (entranceId: string, limit = 20) =>
       Array.from(this.assessmentsMap.values())
         .filter((a) => a.entranceId === entranceId)
-        .sort((a, b) => new Date(b.assessedAt).getTime() - new Date(a.assessedAt).getTime())
+        .sort((a, b) => {
+          const diff = new Date(b.assessedAt).getTime() - new Date(a.assessedAt).getTime();
+          if (diff !== 0) return diff;
+          return b.id.localeCompare(a.id);
+        })
         .slice(0, limit),
     save: async (assessment: AccessAssessment) => {
       this.assessmentsMap.set(assessment.id, { ...assessment });

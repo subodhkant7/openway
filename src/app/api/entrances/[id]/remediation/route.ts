@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getStorageProvider } from "@/persistence";
 import { transitionAssuranceState } from "@/workflow/stateMachine";
 import { RemediationTask, AuditEvent, AccessAssessment } from "@/domain/types";
+import { validateTenantAccess } from "@/lib/tenantAuth";
 
 const CreateRemediationSchema = z.object({
   reason: z.string().min(3, "Reason must be at least 3 characters"),
@@ -15,6 +16,11 @@ export async function POST(
 ) {
   try {
     const entranceId = params.id;
+    const authCheck = validateTenantAccess({ entranceId });
+    if (!authCheck.allowed) {
+      return NextResponse.json({ error: authCheck.error }, { status: 403 });
+    }
+
     const body = await request.json();
     const parsed = CreateRemediationSchema.safeParse(body);
 

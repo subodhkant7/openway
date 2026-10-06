@@ -85,6 +85,16 @@ export class RingWebhookHandler {
     signatureHeader: string | null | undefined,
     secret?: string
   ): WebhookProcessResult {
+    // Enforce 1MB maximum payload size limit
+    const MAX_WEBHOOK_BYTES = 1024 * 1024;
+    if (rawBody && rawBody.length > MAX_WEBHOOK_BYTES) {
+      throw new RingProviderError({
+        code: "PAYLOAD_TOO_LARGE",
+        message: "Webhook payload exceeds 1MB limit.",
+        statusCode: 413,
+      });
+    }
+
     // Clean expired entries from deduplication cache
     this.cleanExpiredCache();
 

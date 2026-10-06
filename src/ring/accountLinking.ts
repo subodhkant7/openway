@@ -189,4 +189,25 @@ export class RingAccountLinkingService {
     if (!record) return "ONBOARDING_REQUIRED";
     return record.status;
   }
+
+  /**
+   * Securely unlinks a Ring account:
+   * Purges stored credentials, invalidates token access, and prevents queued processing.
+   */
+  async unlinkAccount(partnerUserId: string): Promise<boolean> {
+    const record = this.inMemoryAccountLinks.get(partnerUserId);
+    if (!record) return false;
+
+    // Securely overwrite in-memory cryptographic parameters
+    record.encryptedAccessToken = "";
+    record.encryptedRefreshToken = "";
+    record.iv = "";
+    record.authTag = "";
+    record.status = "ACCOUNT_RELINK_REQUIRED";
+    record.updatedAt = new Date().toISOString();
+
+    this.inMemoryAccountLinks.delete(partnerUserId);
+    safeLog("info", `[OpenWay AccountLinking] Successfully unlinked Ring account for user ${partnerUserId}`);
+    return true;
+  }
 }

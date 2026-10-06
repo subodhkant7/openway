@@ -61,13 +61,19 @@ export class VisionPipelineService {
 
   /**
    * Selects analyzer based on environment and provider mode.
+   * In production (OPENWAY_ENV === "production"), Bedrock is mandatory.
    */
   public resolveAnalyzer(): VisionAnalyzer {
+    const isProduction = process.env.OPENWAY_ENV === "production";
     const providerMode = process.env.OPENWAY_PROVIDER || "simulator";
     const useLiveBedrock =
       Boolean(process.env.AWS_ACCESS_KEY_ID) ||
       Boolean(process.env.AWS_PROFILE) ||
       process.env.OPENWAY_VISION_PROVIDER === "bedrock";
+
+    if (isProduction) {
+      return new BedrockVisionAnalyzer();
+    }
 
     if (useLiveBedrock && providerMode !== "simulator") {
       return new BedrockVisionAnalyzer();
@@ -85,31 +91,65 @@ export class VisionPipelineService {
     const storage: StorageProvider = getStorageProvider();
     const { entrance, evidence, imageBytes, mimeType } = options;
 
+    const isProduction = process.env.OPENWAY_ENV === "production";
     const analyzer = options.analyzer || this.resolveAnalyzer();
+
+    // Security Invariant: in production, never allow simulator vision as evidence for official Ring data
+    if (isProduction && analyzer.analyzerName !== "amazon-bedrock" && evidence.provenance === "OFFICIAL_RING") {
+      throw new Error("Security violation: Simulator vision analyzer is strictly prohibited for official Ring evidence in production.");
+    }
+
     const processingKey = this.getProcessingKey(evidence, analyzer.analyzerVersion);
 
     // 1. Idempotency & Cost Control Check
     let observation: DetailedVisionObservation;
     let visionInferenceMs = 0;
 
-    if (this.cache.has(processingKey)) {
-      const { telemetry } = await import("@/telemetry/metrics");
-      telemetry.increment("dedupeHits");
-      observation = this.cache.get(processingKey)!;
-    } else {
-      const { telemetry } = await import("@/telemetry/metrics");
-      telemetry.increment("bedrockCalls");
-      const inferenceStart = Date.now();
-      observation = await analyzer.analyzeImage({
-        evidence,
-        imageBytes,
-        mimeType,
-        requirements: entrance.requirements,
-        entranceName: entrance.name,
-        correlationId,
-      });
-      visionInferenceMs = Date.now() - inferenceStart;
-      this.cache.set(processingKey, observation);
+    try {
+      if (this.cache.has(processingKey)) {
+        const { telemetry } = await import("@/telemetry/metrics");
+        telemetry.increment("dedupeHits");
+        observation = this.cache.get(processingKey)!;
+      } else {
+        const { telemetry } = await import("@/telemetry/metrics");
+        telemetry.increment("bedrockCalls");
+        const inferenceStart = Date.now();
+        observation = await analyzer.analyzeImage({
+          evidence,
+          imageBytes,
+          mimeType,
+          requirements: entrance.requirements,
+          entranceName: entrance.name,
+          correlationId,
+        });
+        visionInferenceMs = Date.now() - inferenceStart;
+        this.cache.set(processingKey, observation);
+      }
+    } catch (err: unknown) {
+      // Production Invariant: Bedrock unavailable -> VISION_UNAVAILABLE -> UNKNOWN
+      // NEVER: Bedrock unavailable -> SimulatorVisionAnalyzer -> clear observation -> VERIFIED_RESTORED!
+      if (isProduction || analyzer.analyzerName === "amazon-bedrock") {
+        const errMsg = err instanceof Error ? err.message : "Vision inference failed";
+        observation = {
+          id: `obs_unavail_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+          evidenceId: evidence.id,
+          entranceId: evidence.entranceId,
+          pathwayClear: "UNKNOWN",
+          obstructionPresent: "UNKNOWN",
+          doorReady: "UNKNOWN",
+          confidence: 0.0,
+          evidenceQuality: "INSUFFICIENT",
+          observedFeatures: [],
+          explanation: `Vision analysis unavailable: ${errMsg}`,
+          analyzer: analyzer.analyzerName,
+          analyzerVersion: analyzer.analyzerVersion,
+          modelId: process.env.BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0",
+          observedAt: new Date().toISOString(),
+          isSimulated: evidence.isSimulated ?? false,
+        };
+      } else {
+        throw err;
+      }
     }
 
     // 2. Persist Observation
@@ -241,10 +281,10 @@ export class VisionPipelineService {
     let stateTransitioned = false;
 
     await storage.transaction(async (tx) => {
-      if (currentState === "AVAILABLE" && targetState === "ACTION_REQUIRED") {
+      if ((currentState === "AVAILABLE" || currentState === "VERIFIED_RESTORED") && targetState === "ACTION_REQUIRED") {
         const step1 = transitionAssuranceState({
           entranceId: entrance.id,
-          currentState: "AVAILABLE",
+          currentState: currentState,
           nextState: "INTERRUPTED",
           trigger: aggregated.reasonCode,
           correlationId,

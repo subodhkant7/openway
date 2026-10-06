@@ -72,12 +72,41 @@ export function canDeclareRestored(params: RestorationGateParams): GatekeeperRes
 
   const remediationTime = new Date(remediationTask.completedAt).getTime();
   const evidenceCapturedTime = new Date(evidence.capturedAt).getTime();
+  const nowTime = new Date(now).getTime();
+  const futureToleranceMs = (freshnessConfig?.futureToleranceSeconds ?? 15) * 1000;
 
-  if (isNaN(remediationTime) || isNaN(evidenceCapturedTime)) {
+  if (isNaN(remediationTime) || isNaN(evidenceCapturedTime) || isNaN(nowTime)) {
     return {
       allowed: false,
       reasonCode: "TEMPORAL_INCONSISTENCY",
       explanation: "Invalid timestamp in remediation task or verification evidence.",
+    };
+  }
+
+  // Reject non-positive or epoch zero timestamps
+  if (remediationTime <= 0 || evidenceCapturedTime <= 0) {
+    return {
+      allowed: false,
+      reasonCode: "TEMPORAL_INCONSISTENCY",
+      explanation: "Negative or non-positive timestamp detected in remediation or evidence.",
+    };
+  }
+
+  // Reject future-dated remediation
+  if (remediationTime > nowTime + futureToleranceMs) {
+    return {
+      allowed: false,
+      reasonCode: "TEMPORAL_INCONSISTENCY",
+      explanation: `Remediation completed timestamp ${remediationTask.completedAt} is in the future beyond allowable clock drift.`,
+    };
+  }
+
+  // Reject future-dated evidence
+  if (evidenceCapturedTime > nowTime + futureToleranceMs) {
+    return {
+      allowed: false,
+      reasonCode: "INVALID_EVIDENCE",
+      explanation: `Verification evidence captured timestamp ${evidence.capturedAt} is in the future beyond allowable clock drift.`,
     };
   }
 

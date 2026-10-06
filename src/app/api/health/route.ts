@@ -6,7 +6,9 @@ export async function GET() {
   const timestamp = new Date().toISOString();
   const environment = process.env.OPENWAY_ENV || process.env.NODE_ENV || "development";
   const version = process.env.OPENWAY_VERSION || "0.1.0";
-  const commitSha = process.env.GIT_COMMIT_SHA || "cd17ad6";
+  const commitSha = process.env.GIT_COMMIT_SHA || "7d751b9";
+
+  const storageProvider = process.env.OPENWAY_STORAGE === "dynamo" ? "dynamo" : "memory";
 
   let dbStatus: "CONNECTED" | "UNAVAILABLE" = "CONNECTED";
   let dbDetails: string = "Operational";
@@ -37,8 +39,29 @@ export async function GET() {
       ? "PARTNER_API_ACTIVE"
       : "SIMULATOR_ACTIVE";
 
-  const isHealthy = dbStatus === "CONNECTED";
-  const overallStatus = isHealthy ? "APPLICATION_HEALTHY" : "DEPENDENCY_DEGRADED";
+  // Configuration validation for production
+  let configError: string | null = null;
+  if (environment === "production") {
+    if (storageProvider !== "dynamo") {
+      configError = "Production environment requires DynamoDB durable storage (OPENWAY_STORAGE=dynamo).";
+    } else if (!process.env.DYNAMODB_TABLE_NAME) {
+      configError = "Production DynamoDB table name (DYNAMODB_TABLE_NAME) is unconfigured.";
+    }
+  }
+
+  let overallStatus: "APPLICATION_HEALTHY" | "DEPENDENCY_DEGRADED" | "CONFIGURATION_ERROR";
+  let httpStatusCode: number;
+
+  if (configError) {
+    overallStatus = "CONFIGURATION_ERROR";
+    httpStatusCode = 500;
+  } else if (dbStatus !== "CONNECTED") {
+    overallStatus = "DEPENDENCY_DEGRADED";
+    httpStatusCode = 503;
+  } else {
+    overallStatus = "APPLICATION_HEALTHY";
+    httpStatusCode = 200;
+  }
 
   return NextResponse.json(
     {
@@ -47,26 +70,26 @@ export async function GET() {
       version,
       commitSha,
       timestamp,
-      components: {
-        database: {
-          status: dbStatus,
-          storageType: process.env.OPENWAY_STORAGE === "dynamo" ? "dynamodb" : "in_memory",
-          details: dbDetails,
-        },
-        bedrock: {
-          status: bedrockStatus,
-          modelId: process.env.BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0",
-          region: process.env.AWS_REGION || "us-east-1",
-        },
-        ring: {
-          status: ringStatus,
-          providerMode: ringProvider,
-          documentationRef: "https://developer.ring.com",
-        },
+      ...(configError ? { configurationError: configError } : {}),
+      storage: {
+        provider: storageProvider,
+        status: dbStatus,
+        details: dbDetails,
+      },
+      bedrock: {
+        configured: bedrockConfigured,
+        status: bedrockStatus,
+        modelId: process.env.BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0",
+        region: process.env.AWS_REGION || "us-east-1",
+      },
+      ring: {
+        provider: ringProvider,
+        status: ringStatus,
+        documentationRef: "https://developer.ring.com",
       },
     },
     {
-      status: isHealthy ? 200 : 503,
+      status: httpStatusCode,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
       },

@@ -219,6 +219,38 @@ export class RecheckService {
 
       lastObservation = pipelineResult.observation;
 
+      // Concurrency & Race Condition Defense:
+      // Re-read current assessment to ensure no new obstruction event arrived while recheck was running!
+      const freshAssessment = await this.storage.assessments.findLatestByEntranceId(entrance.id);
+      const activeTask = await this.storage.remediations.findActiveByEntranceId(entrance.id);
+
+      if (
+        freshAssessment?.state === "ACTION_REQUIRED" ||
+        freshAssessment?.state === "INTERRUPTED" ||
+        (activeTask && activeTask.id !== completedTask.id)
+      ) {
+        safeLog("warn", "Recheck aborted: New interruption or state transition occurred during recheck", {
+          entranceId: entrance.id,
+          currentDbState: freshAssessment?.state,
+          activeTaskId: activeTask?.id,
+        });
+
+        return {
+          success: false,
+          taskId,
+          entranceId: entrance.id,
+          previousState: freshAssessment?.state || currentState,
+          finalState: freshAssessment?.state || currentState,
+          gatekeeperResult: {
+            allowed: false,
+            reasonCode: "INVALID_STATE",
+            explanation: `Recheck aborted: Entrance state changed to "${freshAssessment?.state}" during verification. Stale verification cannot overwrite active interruption.`,
+          },
+          attempts: attempt,
+          explanation: `Recheck aborted: New interruption or state transition occurred during verification.`,
+        };
+      }
+
       // Evaluate pure RestorationGatekeeper & Post-Remediation Verifier
       const gatekeeper = canDeclareRestored({
         currentState: "RECHECKING",

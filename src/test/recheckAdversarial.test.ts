@@ -46,7 +46,7 @@ describe("Recheck Adversarial & Hardened Verification (Phase 5)", () => {
       evidenceIds: [],
       observationIds: [],
       policyVersion: "1.0.0",
-      assessedAt: "2026-10-06T10:10:00.000Z",
+      assessedAt: new Date(Date.now() - 60000).toISOString(),
     });
   });
 

@@ -106,25 +106,38 @@ OpenWay uses a production-grade single-table DynamoDB architecture with explicit
 
 ---
 
-## 11. Ring Account-Linking Token Encryption & Storage Security
+## 11. Ring Account-Linking Token Encryption, Storage Security & Unlinking
 
 For production multi-tenant deployments requiring Ring OAuth:
 - **Envelope / AEAD Encryption at Rest**: Ring access tokens and refresh tokens are encrypted at rest using AES-256-GCM (`RingAccountLinkingService.encryptToken`) with cryptographically secure 12-byte initialization vectors (IVs) and authentication tags.
 - **No Token Logging**: Logging filters strictly sanitize tokens, auth codes, and secret headers before emitting log records.
 - **Token Refresh Abstraction**: OpenWay never uses refresh tokens as bearer tokens. If an access token expires and refresh credentials are invalid, the system halts with an explicit `ACCOUNT_RELINK_REQUIRED` status.
+- **Account Unlinking & Cryptographic Revocation**: `RingAccountLinkingService.unlinkAccount()` immediately invalidates user tokens, shreds cryptographic keys from memory, marks account status as `ACCOUNT_RELINK_REQUIRED`, and prevents any queued or subsequent background processing from invoking stale Ring credentials.
 
 ---
 
 ## 12. Public Demo Sandbox & Mutation Rate Limiting
 
 The public deployed demo is exposed to hackathon judges and evaluators without requiring Ring credentials, protected by bounded sandbox constraints:
-- **Strict Demo Tenant Binding**: Public mutation endpoints (`POST /api/demo/reset`, `POST /api/simulator/scenario`) validate that the target entrance strictly matches `entrance_side_accessible`. Requests targeting any other entrance or venue are rejected with HTTP 403 Forbidden.
+- **Strict Demo Tenant Binding**: Public mutation endpoints (`POST /api/demo/reset`, `POST /api/simulator/scenario`, `POST /api/vision/analyze`) validate that the target entrance strictly matches `entrance_side_accessible`. Requests targeting any other entrance or venue are rejected with HTTP 403 Forbidden.
 - **Sliding-Window Rate Limiting**: All public endpoints enforce rate limiting (15 requests/minute for reset, 30 requests/minute for scenario generation, 60 requests/minute for read queries).
-- **Safe Health Endpoint**: `GET /api/health` reports operational status and dependency telemetry (database, Bedrock, Ring) while omitting all keys, secrets, database table ARNs, and sensitive internal paths.
+- **Safe Health Endpoint**: `GET /api/health` reports operational status and dependency telemetry (`APPLICATION_HEALTHY`, `DEPENDENCY_DEGRADED`, `CONFIGURATION_ERROR`) while strictly omitting all keys, secrets, database table ARNs, and sensitive internal paths.
+- **HTTP Security Headers**: Production responses enforce strict HTTP security headers: Content-Security-Policy, HSTS (2 years, includeSubDomains, preload), X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Referrer-Policy: strict-origin-when-cross-origin, and Permissions-Policy.
 
 ---
 
-## 13. Vulnerability Reporting
+## 13. Security Documentation References
+
+For exhaustive architectural and threat analyses, consult:
+- [Threat Model & Attack Matrix](file:///Users/urjasoft/Documents/OpenWay/docs/threat-model.md)
+- [Security Model & Invariants](file:///Users/urjasoft/Documents/OpenWay/docs/security-model.md)
+- [AWS IAM Least Privilege & SSR Compute Roles](file:///Users/urjasoft/Documents/OpenWay/docs/aws-iam.md)
+- [API Surface Inventory & Risk Assessment](file:///Users/urjasoft/Documents/OpenWay/docs/api-surface.md)
+
+---
+
+## 14. Vulnerability Reporting
 
 If you discover a security vulnerability within OpenWay, please contact the maintainers directly via repository issue or security advisory.
+
 

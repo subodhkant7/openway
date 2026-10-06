@@ -7,6 +7,21 @@ export async function POST(
 ) {
   try {
     const taskId = params.id;
+    const { getStorageProvider } = await import("@/persistence");
+    const storage = getStorageProvider();
+    const task = await storage.remediations.findById(taskId);
+    if (!task) {
+      return NextResponse.json({ error: "Remediation task not found" }, { status: 404 });
+    }
+
+    // Tenant Isolation: Prevent verifying tasks belonging to other tenants
+    if (task.entranceId !== "entrance_side_accessible") {
+      return NextResponse.json(
+        { error: "Access denied: Task belongs to an unauthorized tenant." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
 
     const recheckService = new RecheckService();

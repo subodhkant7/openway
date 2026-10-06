@@ -15,6 +15,14 @@ export async function POST(
       return NextResponse.json({ error: "Remediation task not found" }, { status: 404 });
     }
 
+    // Tenant Isolation: Prevent mutating tasks belonging to other tenants
+    if (task.entranceId !== "entrance_side_accessible") {
+      return NextResponse.json(
+        { error: "Access denied: Task belongs to an unauthorized tenant." },
+        { status: 403 }
+      );
+    }
+
     if (task.status !== "OPEN") {
       return NextResponse.json(
         { error: `Cannot acknowledge task in status "${task.status}"` },

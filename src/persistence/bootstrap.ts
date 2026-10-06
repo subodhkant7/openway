@@ -1,4 +1,5 @@
 import { StorageProvider } from "./repositories";
+import { getStorageProvider } from "./index";
 import { Venue, Entrance, AccessAssessment, AuditEvent } from "@/domain/types";
 
 export const DEMO_IDS = {
@@ -19,7 +20,8 @@ export interface BootstrapResult {
  * Deterministically and idempotently bootstraps the demo environment in storage.
  * If entities already exist, they are preserved to maintain durability.
  */
-export async function bootstrapStorage(storage: StorageProvider): Promise<BootstrapResult> {
+export async function bootstrapStorage(storageProvider?: StorageProvider): Promise<BootstrapResult> {
+  const storage = storageProvider || getStorageProvider();
   const now = new Date().toISOString();
   let venueCreated = false;
   let entranceCreated = false;

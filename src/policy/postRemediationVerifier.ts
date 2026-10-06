@@ -86,13 +86,40 @@ export function verifyPostRemediationEvidence(
   }
 
   const captureTime = new Date(evidence.capturedAt).getTime();
-  if (isNaN(captureTime)) {
+  const nowTime = new Date(now).getTime();
+  const futureToleranceMs = (params.freshnessConfig?.futureToleranceSeconds ?? 15) * 1000;
+
+  if (isNaN(captureTime) || isNaN(nowTime)) {
     return {
       verified: false,
       outcome: "UNKNOWN",
       reasonCode: "TEMPORALLY_UNVERIFIED",
       explanation: `Invalid capture timestamp format: ${evidence.capturedAt}`,
       classification: "TEMPORALLY_UNVERIFIED",
+      evaluatedAt: nowIso,
+    };
+  }
+
+  // Reject non-positive or epoch zero timestamps
+  if (captureTime <= 0) {
+    return {
+      verified: false,
+      outcome: "UNKNOWN",
+      reasonCode: "TEMPORAL_INCONSISTENCY",
+      explanation: `Negative or non-positive capture timestamp detected: ${evidence.capturedAt}`,
+      classification: "INVALID",
+      evaluatedAt: nowIso,
+    };
+  }
+
+  // Reject future-dated evidence beyond clock drift
+  if (captureTime > nowTime + futureToleranceMs) {
+    return {
+      verified: false,
+      outcome: "UNKNOWN",
+      reasonCode: "INVALID_EVIDENCE",
+      explanation: `Verification evidence captured timestamp ${evidence.capturedAt} is in the future beyond allowable clock drift.`,
+      classification: "INVALID",
       evaluatedAt: nowIso,
     };
   }
@@ -116,6 +143,29 @@ export function verifyPostRemediationEvidence(
       outcome: "UNKNOWN",
       reasonCode: "TEMPORAL_INCONSISTENCY",
       explanation: `Invalid remediation completedAt timestamp: ${remediationTask.completedAt}`,
+      classification: "PRE_REMEDIATION",
+      evaluatedAt: nowIso,
+    };
+  }
+
+  // Reject non-positive or future completion timestamps
+  if (completionTime <= 0) {
+    return {
+      verified: false,
+      outcome: "UNKNOWN",
+      reasonCode: "TEMPORAL_INCONSISTENCY",
+      explanation: `Negative or non-positive remediation completion timestamp: ${remediationTask.completedAt}`,
+      classification: "PRE_REMEDIATION",
+      evaluatedAt: nowIso,
+    };
+  }
+
+  if (completionTime > nowTime + futureToleranceMs) {
+    return {
+      verified: false,
+      outcome: "UNKNOWN",
+      reasonCode: "TEMPORAL_INCONSISTENCY",
+      explanation: `Remediation completed timestamp ${remediationTask.completedAt} is in the future beyond allowable clock drift.`,
       classification: "PRE_REMEDIATION",
       evaluatedAt: nowIso,
     };

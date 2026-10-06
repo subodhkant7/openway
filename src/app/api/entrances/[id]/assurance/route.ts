@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStorageProvider } from "@/persistence";
+import { validateTenantAccess } from "@/lib/tenantAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,11 @@ export async function GET(
 ) {
   try {
     const entranceId = params.id;
+    const authCheck = validateTenantAccess({ entranceId });
+    if (!authCheck.allowed) {
+      return NextResponse.json({ error: authCheck.error }, { status: 403 });
+    }
+
     const storage = getStorageProvider();
 
     const entrance = await storage.entrances.findById(entranceId);

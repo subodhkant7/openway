@@ -29,6 +29,23 @@ export async function POST(request: Request) {
     }
 
     const { entranceId, evidenceId, analyzerType, simulatorMode, correlationId } = parsed.data;
+    const isProduction = process.env.OPENWAY_ENV === "production";
+
+    // Tenant isolation: public calls restricted to demo entrance
+    if (entranceId !== "entrance_side_accessible") {
+      return NextResponse.json(
+        { error: "Access denied: Target entrance is outside public demo sandbox." },
+        { status: 403 }
+      );
+    }
+
+    if (isProduction && analyzerType === "simulator") {
+      return NextResponse.json(
+        { error: "Simulator analyzer is strictly prohibited in production environment." },
+        { status: 403 }
+      );
+    }
+
     const storage = getStorageProvider();
 
     // 1. Resolve Entrance
@@ -51,18 +68,19 @@ export async function POST(request: Request) {
     }
 
     if (!evidence) {
+      // Invariant: Synthetic or test-triggered evidence cannot claim OFFICIAL_RING provenance
       evidence = {
-        id: `ev_live_${Date.now()}`,
+        id: `ev_test_${Date.now()}`,
         venueId: entrance.venueId,
         entranceId: entrance.id,
-        provider: analyzerType === "bedrock" ? "RING" : "SIMULATOR",
+        provider: "SIMULATOR",
         deviceId: entrance.cameraBinding.deviceId,
         componentId: entrance.cameraBinding.componentId,
         capturedAt: nowIso,
         receivedAt: nowIso,
         evidenceType: "IMAGE",
-        provenance: analyzerType === "bedrock" ? "OFFICIAL_RING" : "SIMULATED_LOCAL",
-        isSimulated: analyzerType === "simulator",
+        provenance: "SIMULATED_LOCAL",
+        isSimulated: true,
         freshness: "FRESH",
         createdAt: nowIso,
       };

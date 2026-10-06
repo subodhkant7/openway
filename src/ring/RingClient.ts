@@ -18,28 +18,72 @@ export interface ImageDownloadResult {
 /**
  * SSRF Protection: Validates that pre-signed media download URLs belong
  * strictly to legitimate Ring or AWS S3 media infrastructure.
+ *
+ * Defends against:
+ * - Localhost / Loopback (127.0.0.1, ::1, 0.0.0.0)
+ * - AWS Instance Metadata Service (169.254.169.254)
+ * - RFC 1918 Private Subnets (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+ * - Non-HTTPS protocols (http, file, gopher, ftp)
+ * - Userinfo embedded credentials (user:pass@host)
+ * - Non-standard ports
+ * - Alternative IP encodings (hex, octal, dword)
+ * - Domain suffix spoofing (e.g. s3.attacker.com)
  */
 export function isValidRingMediaHost(urlStr: string): boolean {
   try {
     const parsed = new URL(urlStr);
-    const host = parsed.hostname.toLowerCase();
-    const isRingOrAws =
-      host.endsWith(".ring.com") ||
-      host === "ring.com" ||
-      host.endsWith(".amazonvision.com") ||
-      host === "amazonvision.com" ||
-      host.endsWith(".amazonaws.com") ||
-      host.startsWith("s3.") ||
-      host.includes(".s3.");
-    const isLocalOrPrivate =
-      host.includes("localhost") ||
+
+    // 1. Strict HTTPS protocol enforcement (no HTTP, file://, ftp://, or protocol downgrades)
+    if (parsed.protocol !== "https:") {
+      return false;
+    }
+
+    // 2. Reject userinfo in URL (e.g. https://ring.com@attacker.com)
+    if (parsed.username || parsed.password) {
+      return false;
+    }
+
+    // 3. Reject non-standard ports (must be default HTTPS port 443 or empty)
+    if (parsed.port && parsed.port !== "443") {
+      return false;
+    }
+
+    const host = parsed.hostname.toLowerCase().trim();
+
+    // 4. Block local, loopback, private IPv4, and IPv6 addresses
+    if (
+      host === "localhost" ||
       host === "127.0.0.1" ||
       host.startsWith("127.") ||
-      host.startsWith("169.254.") ||
-      host.startsWith("10.") ||
-      host.startsWith("192.168.") ||
-      host.startsWith("172.16.");
-    return isRingOrAws && !isLocalOrPrivate;
+      host === "0.0.0.0" ||
+      host === "::1" ||
+      host === "[::1]" ||
+      host === "::" ||
+      host === "[::]" ||
+      host.startsWith("[") ||
+      host.startsWith("169.254.") || // AWS Link-Local / Metadata
+      host.startsWith("10.") ||       // RFC 1918
+      host.startsWith("192.168.") ||  // RFC 1918
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host) // RFC 1918 172.16.0.0/12
+    ) {
+      return false;
+    }
+
+    // 5. Block decimal/hex/octal integer IP encodings (e.g. 2130706433, 0x7f000001, 017700000001)
+    if (/^0x[0-9a-f]+$/i.test(host) || /^\d+$/.test(host) || /^0\d+/.test(host)) {
+      return false;
+    }
+
+    // 6. Strict allowed domain suffixes (must strictly end with authorized Ring or AWS domain)
+    const isAuthorizedDomain =
+      host === "ring.com" ||
+      host.endsWith(".ring.com") ||
+      host === "amazonvision.com" ||
+      host.endsWith(".amazonvision.com") ||
+      host === "amazonaws.com" ||
+      host.endsWith(".amazonaws.com");
+
+    return isAuthorizedDomain;
   } catch {
     return false;
   }
@@ -358,11 +402,58 @@ export class RingClient {
       }
 
       const contentType = response.headers?.get("content-type") || "image/jpeg";
+      const MAX_MEDIA_BYTES = 10 * 1024 * 1024; // 10MB streaming cap
 
       // If returned binary content
       if (contentType.includes("image/")) {
-        const arrayBuffer = await response.arrayBuffer();
-        const base64 = Buffer.from(arrayBuffer).toString("base64");
+        const contentLength = response.headers?.get("content-length");
+        if (contentLength && parseInt(contentLength, 10) > MAX_MEDIA_BYTES) {
+          throw new RingProviderError({
+            code: "MEDIA_TOO_LARGE",
+            message: `Media payload size (${contentLength} bytes) exceeds the 10MB limit.`,
+            correlationId,
+            isRetryable: false,
+          });
+        }
+
+        // Stream and count bytes progressively to defend against chunked large responses without Content-Length
+        let totalBytes = 0;
+        const chunks: Uint8Array[] = [];
+
+        if (response.body && typeof response.body.getReader === "function") {
+          const reader = response.body.getReader();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              totalBytes += value.length;
+              if (totalBytes > MAX_MEDIA_BYTES) {
+                await reader.cancel("Media payload exceeded 10MB limit.");
+                throw new RingProviderError({
+                  code: "MEDIA_TOO_LARGE",
+                  message: `Media payload stream exceeded 10MB limit (${totalBytes} bytes read).`,
+                  correlationId,
+                  isRetryable: false,
+                });
+              }
+              chunks.push(value);
+            }
+          }
+        } else {
+          const arrayBuffer = await response.arrayBuffer();
+          if (arrayBuffer.byteLength > MAX_MEDIA_BYTES) {
+            throw new RingProviderError({
+              code: "MEDIA_TOO_LARGE",
+              message: `Media payload size (${arrayBuffer.byteLength} bytes) exceeds the 10MB limit.`,
+              correlationId,
+              isRetryable: false,
+            });
+          }
+          chunks.push(new Uint8Array(arrayBuffer));
+        }
+
+        const totalBuffer = Buffer.concat(chunks);
+        const base64 = totalBuffer.toString("base64");
         return {
           dataUrl: `data:${contentType};base64,${base64}`,
           format: contentType,
