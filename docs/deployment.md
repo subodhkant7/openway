@@ -159,8 +159,8 @@ Attach the following least-privilege policy to the AWS Amplify Service Role:
    ```text
    https://<your-amplify-domain>.amplifyapp.com
    ```
-4. Verify the dashboard loads with **Maple Street Cafe** and **Side Accessible Entrance** in `AVAILABLE` state.
-5. Execute the canonical demo sequence via the **Phase 6 Judge Demo & Assurance Workbench**.
+4. Verify the dashboard loads with **OpenWay Demo Café** and **Side Accessible Entrance** in `AVAILABLE` state.
+5. Execute the canonical demo sequence via the **Hackathon Judge Demo & Assurance Workbench**.
 6. Refresh the browser; confirm that state changes persist durably across reloads.
 
 ---

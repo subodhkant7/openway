@@ -149,7 +149,7 @@ export function EntranceAssuranceCard({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div>
           <span className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
-            Phase 5 Assurance Workflow Console
+            OpenWay Assurance Workflow Console
           </span>
           <h2 id="entrance-assurance-heading" className="text-lg font-bold text-white flex items-center gap-2">
             Selected Entrance Assurance

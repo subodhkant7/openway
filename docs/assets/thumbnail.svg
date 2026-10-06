@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="100%" height="100%" style="background:#090d16; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16" />
+      <stop offset="50%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="heroTextGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="50%" stop-color="#818cf8" />
+      <stop offset="100%" stop-color="#34d399" />
+    </linearGradient>
+    <filter id="thumbShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bgGrad)"/>
+
+  <!-- Subtle Background Grid & Glows -->
+  <circle cx="200" cy="180" r="300" fill="#0284c7" fill-opacity="0.08"/>
+  <circle cx="1080" cy="500" r="350" fill="#10b981" fill-opacity="0.06"/>
+  <circle cx="950" cy="150" r="250" fill="#8b5cf6" fill-opacity="0.06"/>
+
+  <!-- Track Badges Top -->
+  <g transform="translate(100, 75)">
+    <!-- Ring Badge -->
+    <rect width="160" height="36" rx="18" fill="#1e293b" stroke="#0284c7" stroke-width="1.5"/>
+    <circle cx="20" cy="18" r="6" fill="#38bdf8"/>
+    <text x="36" y="23" fill="#e2e8f0" font-size="13" font-weight="600">RING TRACK</text>
+
+    <!-- AWS Builder Badge -->
+    <rect x="180" width="230" height="36" rx="18" fill="#1e293b" stroke="#f59e0b" stroke-width="1.5"/>
+    <circle cx="200" cy="18" r="6" fill="#fbbf24"/>
+    <text x="216" y="23" fill="#e2e8f0" font-size="13" font-weight="600">AWS BUILDER CHALLENGE</text>
+
+    <!-- WCAG AA Target Badge -->
+    <rect x="430" width="160" height="36" rx="18" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+    <circle cx="450" cy="18" r="6" fill="#34d399"/>
+    <text x="466" y="23" fill="#e2e8f0" font-size="13" font-weight="600">WCAG 2.2 AA</text>
+  </g>
+
+  <!-- Main Hero Title -->
+  <g transform="translate(100, 200)">
+    <text x="0" y="45" fill="url(#heroTextGrad)" font-size="64" font-weight="800" letter-spacing="-1">OpenWay</text>
+    <text x="0" y="100" fill="#f8fafc" font-size="32" font-weight="700">Accessibility Assurance for Ring</text>
+    <text x="0" y="145" fill="#94a3b8" font-size="19" font-weight="400">
+      Proactive, event-driven detection &bull; Coordinated remediation &bull; Fresh-evidence verification
+    </text>
+  </g>
+
+  <!-- Central Visual Cards Mockup -->
+  <g transform="translate(100, 390)" filter="url(#thumbShadow)">
+    <!-- Stage Card 1: Detected -->
+    <g transform="translate(0, 0)">
+      <rect width="250" height="180" rx="12" fill="#1e293b" stroke="#ef4444" stroke-width="2"/>
+      <rect x="16" y="16" width="130" height="26" rx="6" fill="#450a0a"/>
+      <text x="26" y="34" fill="#fca5a5" font-size="11" font-weight="700">DETECTED</text>
+      <text x="16" y="70" fill="#f8fafc" font-size="15" font-weight="600">Obstruction Present</text>
+      <text x="16" y="92" fill="#94a3b8" font-size="12">Delivery parcel on ramp</text>
+      <text x="16" y="115" fill="#ef4444" font-size="11" font-weight="600">ACCESS INTERRUPTED</text>
+      <line x1="16" y1="135" x2="234" y2="135" stroke="#334155" stroke-width="1"/>
+      <text x="16" y="156" fill="#64748b" font-size="11">Task dispatched to staff</text>
+    </g>
+
+    <!-- Arrow 1 -> 2 -->
+    <path d="M 265 90 L 295 90" stroke="#64748b" stroke-width="3" stroke-dasharray="4,4"/>
+
+    <!-- Stage Card 2: Rechecking -->
+    <g transform="translate(310, 0)">
+      <rect width="250" height="180" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+      <rect x="16" y="16" width="130" height="26" rx="6" fill="#451a03"/>
+      <text x="26" y="34" fill="#fde68a" font-size="11" font-weight="700">RECHECKING</text>
+      <text x="16" y="70" fill="#f8fafc" font-size="15" font-weight="600">Staff Reported Fixed</text>
+      <text x="16" y="92" fill="#94a3b8" font-size="12">Obstruction moved</text>
+      <text x="16" y="115" fill="#fbbf24" font-size="11" font-weight="600">NOT YET RESTORED</text>
+      <line x1="16" y1="135" x2="234" y2="135" stroke="#334155" stroke-width="1"/>
+      <text x="16" y="156" fill="#64748b" font-size="11">Requesting fresh evidence</text>
+    </g>
+
+    <!-- Arrow 2 -> 3 -->
+    <path d="M 575 90 L 605 90" stroke="#64748b" stroke-width="3" stroke-dasharray="4,4"/>
+
+    <!-- Stage Card 3: Verified Restored -->
+    <g transform="translate(620, 0)">
+      <rect width="250" height="180" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="2.5"/>
+      <rect x="16" y="16" width="160" height="26" rx="6" fill="#047857"/>
+      <text x="26" y="34" fill="#d1fae5" font-size="11" font-weight="700">VERIFIED RESTORED</text>
+      <text x="16" y="70" fill="#f8fafc" font-size="15" font-weight="700">Fresh Proof Confirmed</text>
+      <text x="16" y="92" fill="#a7f3d0" font-size="12">Bedrock + Gatekeeper Pass</text>
+      <text x="16" y="115" fill="#34d399" font-size="11" font-weight="600">&#10003; Ramp pathway clear</text>
+      <line x1="16" y1="135" x2="234" y2="135" stroke="#047857" stroke-width="1"/>
+      <text x="16" y="156" fill="#a7f3d0" font-size="11">ACCESS RESTORED</text>
+    </g>
+
+    <!-- Branch Card: UNKNOWN Fail-Closed -->
+    <g transform="translate(890, 0)">
+      <rect width="190" height="180" rx="12" fill="#1e1e2d" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <text x="16" y="35" fill="#fbbf24" font-size="11" font-weight="700">UNKNOWN</text>
+      <text x="16" y="68" fill="#f8fafc" font-size="13" font-weight="600">Fail-Closed</text>
+      <text x="16" y="92" fill="#94a3b8" font-size="11">Stale / missing / blurred</text>
+      <text x="16" y="112" fill="#94a3b8" font-size="11">evidence never turns</text>
+      <text x="16" y="132" fill="#fbbf24" font-size="11" font-weight="600">green without proof</text>
+      <line x1="16" y1="145" x2="174" y2="145" stroke="#334155" stroke-width="1"/>
+      <text x="16" y="165" fill="#64748b" font-size="10">Zero false greens</text>
+    </g>
+  </g>
+
+  <!-- Bottom Core Invariant Statement -->
+  <g transform="translate(100, 645)">
+    <rect width="1080" height="42" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+    <text x="540" y="26" text-anchor="middle" fill="#e2e8f0" font-size="13">
+      <tspan fill="#38bdf8" font-weight="700">Core Invariant:</tspan> Detected is not resolved. Resolved is not verified until fresh evidence proves the physical condition changed.
+    </text>
+  </g>
+</svg>

@@ -1,193 +1,141 @@
-# OpenWay Phase 6 — Interactive Demo Script
+# OpenWay — Official Hackathon Demo Script & Video Storyboard
 
-## AWS Cloud Deployment, Durable Persistence & Judge Walkthrough
-
-This script walks through a complete, live demonstration of OpenWay's **Phase 6 production-deployed accessibility assurance system**: establishing durable cloud persistence with Amazon DynamoDB, multimodal AI vision with Amazon Bedrock, and an uncompromised verification gate that survives browser and application reloads.
-
----
-
-## Prerequisites
-
-- Deployed Cloud Application: AWS Amplify Hosting (`https://main.d2k4o9u0v1.amplifyapp.com`) or local dev server
-- Browser open to: `https://main.d2k4o9u0v1.amplifyapp.com` (or [http://localhost:3000](http://localhost:3000))
-- Reference: [Hackathon Judge Guide (JUDGE.md)](JUDGE.md) | [AWS Deployment Guide](docs/deployment.md)
+> **Primary Track**: Ring  
+> **Mini-Challenge**: AWS Builder  
+> **Live Public Demo**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com)  
+> **System Health**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com/api/health](https://main.d2m3o5z8h3v1qw.amplifyapp.com/api/health)
 
 ---
 
-## The Product Story
+## 1. Product Positioning Statement
 
-> A delivery event changes the environment. OpenWay notices the change before an accessibility-dependent visitor encounters it, checks fresh Ring evidence, alerts staff, coordinates remediation, and **refuses to declare the entrance restored until new post-remediation evidence proves the physical obstruction is gone**.
+> **OpenWay is a proactive, event-driven accessibility assurance system that uses Ring evidence to detect configured, camera-observable access interruptions, coordinate remediation, and verify restoration with fresh evidence.**
+
+### The Core Invariant
+> **"Detected is not resolved. Resolved is not verified until fresh evidence proves the physical condition changed."**
+
+---
+
+## 2. Three-Minute Demo Video Script & Storyboard
+
+The demo video is timed to strictly stay under the 3-minute threshold required by Amazon hackathon rules (total duration: **2 minutes 58 seconds**).
 
 ```text
-BASELINE
-AVAILABLE
-    ↓
-Ring Motion Event
-    ↓
-Fresh Evidence
-    ↓
-Bedrock Observation:
-obstructionPresent = TRUE
-    ↓
-ACCESS INTERRUPTED
-    ↓
-ACTION REQUIRED
-    ↓
-Staff Acknowledges
-    ↓
-Staff Reports COMPLETE
-    ↓
-RECHECKING
-    ↓
-Explicit Post-Remediation Evidence
-    ↓
-Bedrock Observation:
-obstructionPresent = FALSE
-pathwayClear = TRUE
-doorReady = TRUE
-    ↓
-Deterministic Gate (verifyPostRemediationEvidence)
-    ↓
-VERIFIED RESTORED
+0:00–0:15 | Opening Hook: The Accessibility Gap & Core Thesis
+0:15–0:35 | Baseline State: Configured Entrance, Ring Camera Binding & Requirements
+0:35–1:05 | Preemptive Interruption: Ring Motion & Bedrock Vision Detection
+1:05–1:25 | Remediation Task: Operational Coordination & Staff Notification
+1:25–1:45 | Staff Action Boundary: Staff Reports Fixed → RECHECKING (No False Green)
+1:45–2:10 | Verification: Fresh Post-Remediation Ring Evidence → VERIFIED RESTORED
+2:10–2:30 | Failure Demonstration: Missing/Unclear Evidence → UNKNOWN (Fail Closed)
+2:30–2:50 | Why OpenWay is Different: Deterministic Policy vs. Simple Camera Alerts
+2:50–2:58 | Closing: Ring + Amazon Bedrock + AWS Cloud Persistence
 ```
 
 ---
 
-## Critical Visual Distinctions
+### Segment-by-Segment Script
 
-1. **Staff Action vs. System Verification**:
-   The operator UI makes the distinction between:
-   ```text
-   STAFF REPORTED FIXED
-   ```
-   and:
-   ```text
-   OPENWAY VERIFIED RESTORED
-   ```
-   obvious and unambiguous. Staff reporting completion moves the entrance to `RECHECKING`; only fresh camera evidence captured after completion unlocks `VERIFIED RESTORED`.
+#### [0:00 – 0:15] Opening Hook: The Problem & Solution
+* **Visual**: Cut directly to the live OpenWay dashboard at [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com).
+* **Voiceover**:
+  > "A business can be listed as accessible while its wheelchair ramp is temporarily blocked by delivery boxes. OpenWay detects the interruption proactively, coordinates staff remediation, and refuses to declare 'restored' until fresh camera evidence proves the obstruction is gone."
 
-2. **Real vs. Simulated Provenance Badges**:
-   - `OFFICIAL RING`: Active when live Ring credentials and Partner API evidence are used.
-   - `SIMULATED RING`: Active when local deterministic simulation evidence is used.
-   - `SIMULATED RING + AMAZON BEDROCK`: Active when simulated image evidence is analyzed by the real Amazon Bedrock foundation model.
+#### [0:15 – 0:35] Scene 1: Baseline State & Ring Camera Binding
+* **Visual**: Highlight the **Selected Entrance Assurance** card showing:
+  - Entrance: **Side Accessible Entrance** at Maple Street Cafe.
+  - Bound Device: **Front Ramp Camera (Ring Wired Doorbell Plus)**.
+  - Configured Conditions: Pathway Clear, Obstruction Free, Door Ready.
+  - Status Badge: **`ACCESS AVAILABLE`** (Green).
+  - Provenance Badge: **`SIMULATED RING`**.
+* **Voiceover**:
+  > "Here is our configured entrance. Ring watches the physical access path. Right now, baseline conditions are verified and access is available."
 
----
+#### [0:35 – 1:05] Scene 2: Preemptive Interruption
+* **Visual**: Click **`1. PREEMPTIVE OBSTRUCTION`** in the Judge Demo Workbench.
+  - Ring motion event fires (`motion` at `cam_front_entrance`).
+  - Ring camera image is acquired into server memory.
+  - Amazon Bedrock vision model analyzes the image &rarr; detects delivery boxes on the ramp (`obstructionPresent = TRUE`).
+  - Status transitions: `AVAILABLE → INTERRUPTED → ACTION_REQUIRED`.
+  - UI callout: *"Accessibility interruption detected before visitor arrival."*
+* **Voiceover**:
+  > "A delivery driver drops packages directly on the access ramp. Ring detects motion, Bedrock analyzes the frame, and OpenWay immediately flags an interruption before any visitor encounters it."
 
-## Canonical Demo Scenario
+#### [1:05 – 1:25] Scene 3: Remediation Workflow
+* **Visual**: Highlight the active Remediation Task card (`task_...`, status `OPEN`).
+  - Clear task description: *"Delivery boxes detected directly on the access ramp pathway."*
+  - Shows detection timestamp, bound camera, and staff action buttons.
+* **Voiceover**:
+  > "OpenWay automatically dispatches a remediation task to floor staff with concrete instructions to clear the pathway."
 
-### Step 1: Baseline Available
-1. Open `https://main.d2k4o9u0v1.amplifyapp.com` (or run locally at `http://localhost:3000`).
-2. Review the **Selected Entrance Assurance** card:
-   - Configured Entrance: **Side Accessible Entrance** at Maple Street Cafe.
-   - Bound Ring Camera: **Front Ramp Camera (`cam_ring_library_01` / comp: `component_video_01`)**.
-   - Typed Requirements: Pathway Clear, Obstruction Free, Door Ready.
-   - Assurance Badge: **`ACCESS AVAILABLE`**.
-   - Provenance Badge: **`SIMULATED RING`** (or `OFFICIAL RING` if playground token is active).
-3. Review the **Evidence & Assurance Timeline** showing baseline audit events.
+#### [1:25 – 1:45] Scene 4: Staff Complete & Strict Refusal to False Green
+* **Visual**: Click **`2. STAFF REMEDIATION`** (or click "Report Fixed").
+  - Task transitions to `COMPLETED`.
+  - Entrance state transitions to **`RECHECKING (REQUESTING FRESH EVIDENCE)`**.
+  - Notice prominent warning banner:
+    > *"Staff reported completion. OpenWay does not accept staff completion as proof. Requesting fresh Ring camera evidence..."*
+  - **The UI refuses to turn green.**
+* **Voiceover**:
+  > "Staff clicks 'Report Fixed.' In a typical system, the dashboard would turn green right here. But staff can be mistaken, distracted, or premature. OpenWay refuses to declare restoration. It moves to RECHECKING."
 
-### Step 2: Preemptive Obstruction
-1. In the **Phase 5 Verification & Demo Workbench**, click:
-   - **`1. RUN PREEMPTIVE OBSTRUCTION`**
-2. Automated workflow execution:
-   - Ring motion event is ingested.
-   - Fresh Ring evidence is acquired.
-   - Vision analysis detects delivery boxes on the wheelchair ramp (`obstructionPresent = TRUE`).
-   - State machine transitions: `AVAILABLE → INTERRUPTED → ACTION_REQUIRED`.
-   - A **Remediation Task** is created with concrete description:
-     *"Delivery boxes detected directly on the access ramp pathway."*
-   - Operator console reflects `ACCESS INTERRUPTION DETECTED` with detection timestamp and provenance.
-   - Timeline records: `RING EVENT → FRESH EVIDENCE → BEDROCK OBSERVATION → ACCESS INTERRUPTED → TASK CREATED`.
+#### [1:45 – 2:10] Scene 5: Deterministic Fresh-Evidence Verification
+* **Visual**: Click **`3. CANONICAL VERIFICATION`**.
+  - System acquires new Ring camera evidence captured *after* staff completion (`capturedAt >= completedAt`).
+  - Bedrock vision model verifies: Pathway Clear &check;, Obstruction Absent &check;, Door Ready &check;.
+  - Status transitions to **`ACCESS RESTORED — VERIFIED`**.
+  - Checkmarks appear on all 9 deterministic gatekeeper rules.
+* **Voiceover**:
+  > "OpenWay acquires a fresh post-remediation frame from Ring. Bedrock confirms the physical clearance, the deterministic gatekeeper verifies all invariants, and only now does OpenWay declare the entrance verified restored."
 
-### Step 3: Staff Remediation
-1. Click:
-   - **`2. RUN STAFF REMEDIATION`** (or click "Report Fixed" on the active task card).
-2. Observe the state transition and strict verification boundary:
-   - Task transitions to `COMPLETED` by Staff Operator.
-   - Entrance state moves to **`RECHECKING (REQUESTING FRESH EVIDENCE)`**.
-   - System displays prominent callout:
-     > **"Staff reported completion. OpenWay does not accept staff completion as proof. Requesting fresh Ring camera evidence..."**
-   - The entrance **refuses to turn green**.
-   - Timeline records: `STAFF ACKNOWLEDGED → REMEDIATION REPORTED → RECHECKING`.
+#### [2:10 – 2:30] Scene 6: The Failure Drill (Proving It's Not Hardcoded)
+* **Visual**: Click **`4. FAILURE DEMO 1: UNAVAILABLE`**.
+  - Simulates an upstream camera outage or network timeout during verification.
+  - State cleanly transitions to **`ASSESSMENT UNKNOWN`** (Gray/Neutral).
+  - Explicit UI text displayed:
+    > *"OpenWay could not obtain sufficient fresh evidence. Restoration was not declared."*
+  - Click **`Reset Demo Narrative`** to show clean baseline recovery.
+* **Voiceover**:
+  > "What if evidence is missing, blurry, or unavailable? OpenWay fails closed to UNKNOWN. It never guesses and never defaults to green."
 
-### Step 4: Verification (Verified Restored)
-1. Click:
-   - **`3. RUN VERIFICATION`** (or click "Evaluate Fresh Ring Evidence Now").
-2. Observe the post-remediation verification gate:
-   - OpenWay explicitly requests new Ring image evidence.
-   - Temporal integrity check confirms:
-     `capturedAt >= remediation.completedAt` (classified as `POST_REMEDIATION`).
-   - Vision analysis verifies pathway is clear (`obstructionPresent = FALSE`, `pathwayClear = TRUE`, `doorReady = TRUE`).
-   - All 10 deterministic conditions pass in `verifyPostRemediationEvidence`.
-   - Entrance state transitions to **`ACCESS RESTORED — VERIFIED`**.
-   - Console displays checkmarks:
-     - *Pathway clear ✓*
-     - *Obstruction absent ✓*
-     - *Door ready ✓*
-     - *Temporal verification satisfied ✓*
-   - Timeline records: `POST-REMEDIATION EVIDENCE → BEDROCK OBSERVATION → DETERMINISTIC GATE → VERIFIED RESTORED`.
+#### [2:30 – 2:50] Architectural Differentiation
+* **Visual**: Display differentiation comparison:
+  ```text
+  Traditional Camera AI:
+  EVENT ──► DETECTION ──► ALERT ──► (Ignored / Unverified)
 
----
+  OpenWay:
+  EVENT ──► EVIDENCE ──► BEDROCK ──► POLICY ──► TASK ──► FRESH EVIDENCE ──► VERIFIED / UNKNOWN
+  ```
+* **Voiceover**:
+  > "Traditional camera systems send passive alerts. OpenWay manages the entire physical assurance lifecycle—verifying configured camera-observable conditions with fresh evidence."
 
-## Failure Demos
-
-### Failure Demo 1: Upstream Media Unavailable → Recovery
-This demo proves OpenWay refuses to declare restoration if Ring returns an error or no media is available.
-
-1. First, click **`1. RUN PREEMPTIVE OBSTRUCTION`** then **`2. RUN STAFF REMEDIATION`** (entrance is now `RECHECKING`).
-2. Click:
-   - **`FAILURE DEMO 1: UNAVAILABLE`**
-3. Workflow:
-   - Recheck service requests media from Ring.
-   - Ring returns 404, 416 (`MEDIA_NOT_FOUND`), or timeout.
-   - OpenWay refuses to default to CLEAR.
-   - Resulting State: **`UNKNOWN`** with message:
-     *"No verified restoration: Ring media evidence unavailable or not found."*
-4. **Recovery**:
-   - Click **`3. RUN VERIFICATION`**.
-   - Fresh valid post-remediation evidence is retrieved.
-   - State cleanly transitions from `UNKNOWN` → `RECHECKING` → **`VERIFIED_RESTORED`**.
-   - This proves robust recovery after transient camera outages.
-
-### Failure Demo 2: Pre-Remediation Evidence Reused → Rejection
-This demo proves OpenWay rejects evidence captured *before* remediation was completed, even if the image download occurred *after* completion.
-
-1. First, click **`1. RUN PREEMPTIVE OBSTRUCTION`** then **`2. RUN STAFF REMEDIATION`** (entrance is now `RECHECKING`).
-2. Click:
-   - **`FAILURE DEMO 2: STALE EVIDENCE`**
-3. Workflow:
-   - Evidence download succeeds (`receiptAt > completedAt`).
-   - However, the image was physically recorded before staff finished the task:
-     `capturedAt < completedAt`.
-   - Classified as: `PRE_REMEDIATION`.
-   - Post-remediation verifier rejects the evidence:
-     `TEMPORAL_INCONSISTENCY: Evidence capture timestamp precedes remediation completion.`
-   - Resulting State: **`UNKNOWN`**.
-   - Proves OpenWay does not accept old cached camera frames.
+#### [2:50 – 2:58] Closing & AWS Builder Integration
+* **Visual**: Display architecture badge: Ring Partner API + Amazon Bedrock + Amazon DynamoDB + AWS Amplify Hosting.
+* **Voiceover**:
+  > "Built on Ring and Amazon Bedrock, running persistently on AWS. OpenWay provides proactive accessibility assurance."
 
 ---
 
-## Adversarial Invariant Defense Tests
+## 3. Ring Claim & Provenance Standards
 
-| Button / Scenario | Test Condition | Expected & Enforced Outcome |
-| :--- | :--- | :--- |
-| **Scenario C: False Complete** | Staff clicked "Fixed", but physical boxes remain in camera view | Returns immediately to `ACTION_REQUIRED`. |
-| **Scenario F: Wrong Camera** | Evidence returned from unbound camera (`cam_unbound_back_dock_99`) | Gatekeeper rejects device mismatch; transitions to `UNKNOWN`. |
-| **Scenario G: Ambiguous AI** | Bedrock returns `UNKNOWN` due to heavy glare or lens obstruction | Gatekeeper refuses restoration; transitions to `UNKNOWN`. |
-| **Scenario H: Event Reconciliation** | Missed Ring motion event during webhook network blip | Recovers event via paginated `links.next` history; replays idempotently. |
+OpenWay adheres strictly to standardized evidence categories across all documentation, UI badges, and demo outputs:
 
----
-
-## Operator Timeline Integrity
-
-Every event recorded in the operator timeline contains:
-- **Timestamp**: Exact ISO 8601 millisecond resolution.
-- **Provenance**: `OFFICIAL_RING`, `SIMULATED_LOCAL`, or `OPENWAY_DERIVED`.
-- **Entity ID**: Obfuscated venue or entrance identifier (e.g., `ent_maple_front_01`).
-- **Reason**: Precise operational rationale (e.g., `POST_REMEDIATION_VERIFIED`, `TEMPORAL_INCONSISTENCY_REJECTED`).
-- **Privacy Assurance**: No customer personal identities, facial data, access tokens, or signed S3 URLs are ever recorded or displayed.
+| Category | Definition | Where Used |
+|---|---|---|
+| **`LIVE RING VERIFIED`** | Actually executed against live Ring Developer Playground tokens or physical hardware in production. | Evaluated when live developer credentials are active. |
+| **`SPEC VERIFIED`** | Conformant with official Ring Partner API v1.1 specs (JSON:API `/v1/devices`, HTTP 303 media downloads, HMAC webhooks). | Verified in unit and contract test suites. |
+| **`SIMULATED RING`** | Deterministic synthetic evidence generated by the Ring Simulator Provider. | Used in the public demo sandbox for frictionless judge evaluation. |
+| **`SIMULATED RING + AMAZON BEDROCK`** | Synthetic Ring image evidence analyzed by the live Amazon Bedrock foundation model. | Used in public demo vision analysis. |
+| **`NOT AVAILABLE`** | Capability not present in evaluation environment. | Explicitly reported on unconfigured features. |
 
 ---
 
-## Surveillance Boundary Statement
+## 4. Deterministic Judge Walkthrough (Under 60 Seconds)
 
-OpenWay does **NOT** perform continuous video surveillance. Every observation is triggered by discrete, documented Ring events (motion, button press, device state) and bounded post-remediation verification requests.
+1. Open [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com).
+2. Confirm **`ACCESS AVAILABLE`** baseline.
+3. Click **`1. PREEMPTIVE OBSTRUCTION`** &rarr; observe **`ACCESS INTERRUPTED`**.
+4. Click **`2. STAFF REMEDIATION`** &rarr; observe **`RECHECKING`** (no false green).
+5. Click **`3. CANONICAL VERIFICATION`** &rarr; observe **`ACCESS RESTORED — VERIFIED`**.
+6. Click **`4. FAILURE DEMO 1: UNAVAILABLE`** &rarr; observe **`ASSESSMENT UNKNOWN`**.
+7. Click **`Reset Demo Narrative`** &rarr; clean reset to baseline.

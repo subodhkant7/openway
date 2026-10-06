@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 920" width="100%" height="100%" style="background:#090d16; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <defs>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7" />
+      <stop offset="100%" stop-color="#0369a1" />
+    </linearGradient>
+    <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />
+      <stop offset="100%" stop-color="#6d28d9" />
+    </linearGradient>
+    <linearGradient id="policyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0f766e" />
+    </linearGradient>
+    <linearGradient id="remediationGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="successGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#64748b" />
+    </marker>
+    <marker id="arrowSuccess" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#10b981" />
+    </marker>
+  </defs>
+
+  <!-- Title & Subtitle -->
+  <text x="400" y="45" text-anchor="middle" fill="#f8fafc" font-size="22" font-weight="700" letter-spacing="0.5">OpenWay Core Architecture</text>
+  <text x="400" y="70" text-anchor="middle" fill="#94a3b8" font-size="13">Event-Driven Evidence Interpretation &amp; Deterministic Assurance Verification</text>
+
+  <!-- Flow Nodes -->
+  <!-- 1. Ring -->
+  <g transform="translate(250, 95)" filter="url(#glow)">
+    <rect width="300" height="58" rx="10" fill="#1e293b" stroke="#0284c7" stroke-width="2"/>
+    <circle cx="35" cy="29" r="14" fill="#0284c7" fill-opacity="0.2"/>
+    <text x="35" y="34" text-anchor="middle" fill="#38bdf8" font-size="15" font-weight="bold">1</text>
+    <text x="65" y="27" fill="#f8fafc" font-size="15" font-weight="600">Ring</text>
+    <text x="65" y="45" fill="#94a3b8" font-size="11">Camera Hardware &amp; Webhooks</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="400" y1="153" x2="400" y2="175" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 2. Event -->
+  <g transform="translate(250, 178)" filter="url(#glow)">
+    <rect width="300" height="52" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <text x="400" y="202" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="600">Event</text>
+    <text x="400" y="220" text-anchor="middle" fill="#94a3b8" font-size="11">Motion &amp; Doorbell Webhooks (v1.1 HMAC)</text>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="400" y1="230" x2="400" y2="252" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 3. Evidence -->
+  <g transform="translate(250, 255)" filter="url(#glow)">
+    <rect width="300" height="52" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <text x="400" y="279" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="600">Evidence</text>
+    <text x="400" y="297" text-anchor="middle" fill="#94a3b8" font-size="11">Authoritative Snapshot &amp; Capture Timestamp</text>
+  </g>
+
+  <!-- Arrow 3 -> 4 -->
+  <line x1="400" y1="307" x2="400" y2="329" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 4. Bedrock -->
+  <g transform="translate(250, 332)" filter="url(#glow)">
+    <rect width="300" height="58" rx="10" fill="#1e293b" stroke="#8b5cf6" stroke-width="2"/>
+    <circle cx="35" cy="29" r="14" fill="#8b5cf6" fill-opacity="0.2"/>
+    <text x="35" y="34" text-anchor="middle" fill="#c084fc" font-size="15" font-weight="bold">AI</text>
+    <text x="65" y="27" fill="#f8fafc" font-size="15" font-weight="600">Amazon Bedrock</text>
+    <text x="65" y="45" fill="#94a3b8" font-size="11">Subordinate Multimodal Vision Interpreter</text>
+  </g>
+
+  <!-- Arrow 4 -> 5 -->
+  <line x1="400" y1="390" x2="400" y2="412" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 5. Observation -->
+  <g transform="translate(250, 415)" filter="url(#glow)">
+    <rect width="300" height="52" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+    <text x="400" y="439" text-anchor="middle" fill="#f8fafc" font-size="14" font-weight="600">Observation</text>
+    <text x="400" y="457" text-anchor="middle" fill="#94a3b8" font-size="11">Structured Tri-State Schema (TRUE / FALSE / UNKNOWN)</text>
+  </g>
+
+  <!-- Arrow 5 -> 6 -->
+  <line x1="400" y1="467" x2="400" y2="489" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 6. Deterministic Policy -->
+  <g transform="translate(250, 492)" filter="url(#glow)">
+    <rect width="300" height="58" rx="10" fill="#1e293b" stroke="#0d9488" stroke-width="2"/>
+    <circle cx="35" cy="29" r="14" fill="#0d9488" fill-opacity="0.2"/>
+    <text x="35" y="34" text-anchor="middle" fill="#2dd4bf" font-size="14" font-weight="bold">§</text>
+    <text x="65" y="27" fill="#f8fafc" font-size="15" font-weight="600">Deterministic Policy</text>
+    <text x="65" y="45" fill="#94a3b8" font-size="11">Code-Enforced Gatekeeper (No LLM Authority)</text>
+  </g>
+
+  <!-- Arrow 6 -> 7 -->
+  <line x1="400" y1="550" x2="400" y2="572" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 7. Remediation -->
+  <g transform="translate(250, 575)" filter="url(#glow)">
+    <rect width="300" height="58" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="35" cy="29" r="14" fill="#f59e0b" fill-opacity="0.2"/>
+    <text x="35" y="34" text-anchor="middle" fill="#fbbf24" font-size="14" font-weight="bold">!</text>
+    <text x="65" y="27" fill="#f8fafc" font-size="15" font-weight="600">Remediation</text>
+    <text x="65" y="45" fill="#94a3b8" font-size="11">Staff Task Dispatched &rarr; Staff Reports Complete</text>
+  </g>
+
+  <!-- Arrow 7 -> 8 -->
+  <line x1="400" y1="633" x2="400" y2="655" stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- 8. Fresh Evidence -->
+  <g transform="translate(250, 658)" filter="url(#glow)">
+    <rect width="300" height="58" rx="10" fill="#1e293b" stroke="#3b82f6" stroke-width="2"/>
+    <circle cx="35" cy="29" r="14" fill="#3b82f6" fill-opacity="0.2"/>
+    <text x="35" y="34" text-anchor="middle" fill="#60a5fa" font-size="14" font-weight="bold">&#8635;</text>
+    <text x="65" y="27" fill="#f8fafc" font-size="15" font-weight="600">Fresh Evidence</text>
+    <text x="65" y="45" fill="#94a3b8" font-size="11">Strict Temporal Rule: capturedAt &gt;= completedAt</text>
+  </g>
+
+  <!-- Arrow 8 -> 9 -->
+  <line x1="400" y1="716" x2="400" y2="738" stroke="#10b981" stroke-width="2" marker-end="url(#arrowSuccess)" />
+
+  <!-- 9. Verified State -->
+  <g transform="translate(230, 741)" filter="url(#glow)">
+    <rect width="340" height="66" rx="12" fill="#064e3b" stroke="#10b981" stroke-width="2.5"/>
+    <circle cx="38" cy="33" r="16" fill="#10b981" fill-opacity="0.3"/>
+    <text x="38" y="39" text-anchor="middle" fill="#34d399" font-size="16" font-weight="bold">&#10003;</text>
+    <text x="70" y="30" fill="#f8fafc" font-size="16" font-weight="700">VERIFIED RESTORED / UNKNOWN</text>
+    <text x="70" y="50" fill="#a7f3d0" font-size="11">Only fresh physical proof clears; fails-closed to UNKNOWN</text>
+  </g>
+
+  <!-- Core Invariant Footer Box -->
+  <g transform="translate(100, 835)">
+    <rect width="600" height="56" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="300" y="25" text-anchor="middle" fill="#e2e8f0" font-size="12" font-weight="600">CORE INVARIANT</text>
+    <text x="300" y="44" text-anchor="middle" fill="#38bdf8" font-size="12">Detected is not resolved. Resolved is not verified until fresh evidence proves it.</text>
+  </g>
+</svg>

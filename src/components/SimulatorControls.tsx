@@ -91,10 +91,10 @@ export function SimulatorControls({ onTriggerAction, selectedEntranceId }: Simul
           </div>
           <div>
             <h2 id="simulator-controls-heading" className="text-sm font-bold text-amber-300">
-              Phase 6 Judge Demo &amp; Assurance Workbench
+              Hackathon Judge Demo &amp; Assurance Workbench
             </h2>
             <p className="text-[11px] text-amber-400/80">
-              Durable cloud persistence, tenant isolation, and deterministic verification proof
+              One-click deterministic walkthrough: Baseline &rarr; Interruption &rarr; Remediation &rarr; Verification &rarr; Failure Proof
             </p>
           </div>
         </div>
