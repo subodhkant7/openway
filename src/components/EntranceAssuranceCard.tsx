@@ -21,6 +21,7 @@ import {
   Check,
   XCircle,
 } from "lucide-react";
+import { VoiceRemediationControls } from "./VoiceRemediationControls";
 
 interface EntranceAssuranceCardProps {
   entrance: Entrance | null;
@@ -214,6 +215,13 @@ export function EntranceAssuranceCard({
                 </span>
               </div>
             </div>
+
+            {/* Voice-Assisted Remediation Mode Controls */}
+            <VoiceRemediationControls
+              entrance={entrance}
+              assuranceStatus={assuranceStatus}
+              activeRemediation={activeRemediation}
+            />
 
             {/* Core Principle Callout */}
             <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-3.5 text-xs text-slate-300">
