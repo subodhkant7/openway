@@ -2,8 +2,8 @@
 
 > **Primary Track**: Ring  
 > **Mini-Challenge**: AWS Builder  
-> **Live Public Demo**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com)  
-> **System Health**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com/api/health](https://main.d2m3o5z8h3v1qw.amplifyapp.com/api/health)
+> **Live Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
+> **System Health**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
 
 ---
 
@@ -37,7 +37,7 @@ The demo video is timed to strictly stay under the 3-minute threshold required b
 ### Segment-by-Segment Script
 
 #### [0:00 – 0:15] Opening Hook: The Problem & Solution
-* **Visual**: Cut directly to the live OpenWay dashboard at [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com).
+* **Visual**: Cut directly to the live OpenWay dashboard at [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com).
 * **Voiceover**:
   > "A business can be listed as accessible while its wheelchair ramp is temporarily blocked by delivery boxes. OpenWay detects the interruption proactively, coordinates staff remediation, and refuses to declare 'restored' until fresh camera evidence proves the obstruction is gone."
 
@@ -132,7 +132,7 @@ OpenWay adheres strictly to standardized evidence categories across all document
 
 ## 4. Deterministic Judge Walkthrough (Under 60 Seconds)
 
-1. Open [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com).
+1. Open [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com).
 2. Confirm **`ACCESS AVAILABLE`** baseline.
 3. Click **`1. PREEMPTIVE OBSTRUCTION`** &rarr; observe **`ACCESS INTERRUPTED`**.
 4. Click **`2. STAFF REMEDIATION`** &rarr; observe **`RECHECKING`** (no false green).

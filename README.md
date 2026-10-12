@@ -32,10 +32,10 @@ When staff reports an obstruction cleared, OpenWay refuses to declare the entran
 
 ## 3. Demo Links
 
-- **Public Demo**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com)
-- **Demo Video**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com) *(See [DEMO.md](DEMO.md) for full scene-by-scene script and playback guide)*
+- **Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)
+- **Demo Video**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com) *(See [DEMO.md](DEMO.md) for full scene-by-scene script and playback guide)*
 - **Judge Quickstart**: [JUDGE.md](JUDGE.md) *(60-second self-guided evaluation sequence)*
-- **Health & Telemetry**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com/api/health](https://main.d2m3o5z8h3v1qw.amplifyapp.com/api/health)
+- **Health & Telemetry**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
 
 The live demo opens directly into **OpenWay Demo Café — Side Accessible Entrance** with state **ACCESS AVAILABLE**. Zero signup, zero AWS credentials, zero Ring credentials, and zero technical setup required.
 

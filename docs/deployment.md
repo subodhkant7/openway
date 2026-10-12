@@ -1,6 +1,24 @@
 # OpenWay — AWS Production Deployment Guide
 
-This guide details how to deploy OpenWay as a durable, cloud-hosted application using **AWS Amplify Hosting**, **Amazon DynamoDB**, and **Amazon Bedrock**.
+This guide details how OpenWay is deployed as a durable, cloud-hosted application using **AWS Amplify Hosting**, **Amazon DynamoDB**, and **Amazon Bedrock**.
+
+### Verified Live Production Deployment (AWS us-east-1)
+
+| Resource | Value / Identifier |
+| :--- | :--- |
+| **Live App URL** | [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com) |
+| **Health Check** | [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health) |
+| **AWS Account** | `241638332840` |
+| **AWS Region** | `us-east-1` (N. Virginia) |
+| **Amplify App ID** | `d2qhyx9vstga35` |
+| **Amplify Branch** | `main` (`arn:aws:amplify:us-east-1:241638332840:apps/d2qhyx9vstga35/branches/main`) |
+| **Hosting Platform** | `WEB_COMPUTE` (Next.js 14 SSR) |
+| **DynamoDB Table** | `OpenWayTable` (`arn:aws:dynamodb:us-east-1:241638332840:table/OpenWayTable`) |
+| **DynamoDB GSI** | `GSI1` (Partition: `GSI1PK`, Sort: `GSI1SK`, Projection: `ALL`) |
+| **DynamoDB TTL** | Enabled on `expiresAt` |
+| **Amplify SSR Role** | `OpenWayAmplifySSRRole` (`arn:aws:iam::241638332840:role/OpenWayAmplifySSRRole`) |
+| **GitHub Source** | `subodhkant7/openway` branch `main` |
+| **Deployed Job ID** | `4` (Commit: `1469ca3`) |
 
 ---
 

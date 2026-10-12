@@ -6,7 +6,7 @@
 - **Mini-Challenge**: AWS Builder  
 **Phase**: Phase 8 — Final Demo, Submission Hardening, Judge Experience & Amazon Hackathon Package  
 **Repository**: [https://github.com/subodhkant7/openway.git](https://github.com/subodhkant7/openway.git)  
-**Live Public Demo**: [https://main.d2m3o5z8h3v1qw.amplifyapp.com](https://main.d2m3o5z8h3v1qw.amplifyapp.com)  
+**Live Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
 
 ---
 
