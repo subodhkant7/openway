@@ -22,7 +22,7 @@ export function CtaSection() {
         {/* Action Buttons */}
         <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
           <Link
-            href="/"
+            href="/console"
             className={`inline-flex items-center gap-2 rounded-xl border border-ow-mint bg-ow-mint-strong px-6 py-3.5 text-sm font-semibold text-ow-ink hover:bg-ow-mint transition shadow-xl ${focusRing}`}
           >
             <span>Launch Operator Console</span>

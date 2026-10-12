@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { RingDevice, RingEvent, RingProviderStatus } from "@/ring/types";
 import { Entrance, AssuranceState, RemediationTask, AuditEvent, AccessibilityRequirements, AccessAssessment } from "@/domain/types";
 import { Evidence } from "@/evidence/types";
@@ -227,6 +228,14 @@ export function OperatorDashboard() {
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900/90 px-3 py-1 text-xs font-medium text-slate-300 hover:text-white hover:border-slate-700 transition"
+              aria-label="Back to Product Presentation"
+            >
+              <span aria-hidden="true">&larr;</span>
+              <span>Product Overview</span>
+            </Link>
             <div className="flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1 border border-slate-800 text-xs">
               <Video className="h-3.5 w-3.5 text-sky-400" />
               <span className="text-slate-400">Ring Runtime:</span>
@@ -336,6 +345,9 @@ export function OperatorDashboard() {
             OpenWay &bull; Real-time accessibility assurance for businesses &bull; Built for Amazon Ring &amp; AWS Bedrock
           </p>
           <div className="flex items-center gap-4">
+            <Link href="/" className="text-slate-400 hover:text-slate-200 transition underline-offset-2 hover:underline">
+              &larr; Product Overview
+            </Link>
             <span>Deterministic State Machine</span>
             <span>Multimodal Vision Intelligence</span>
             <span>WCAG 2.2 AA Target</span>

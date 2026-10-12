@@ -16,7 +16,8 @@
 
 export const PRESENTATION_LINKS = {
   /** Verified production deployment of the interactive OpenWay console. */
-  demo: "https://main.d2qhyx9vstga35.amplifyapp.com",
+  demo: "https://main.d2qhyx9vstga35.amplifyapp.com/console",
+  presentation: "https://main.d2qhyx9vstga35.amplifyapp.com",
   repository: "https://github.com/subodhkant7/openway",
 } as const;
 

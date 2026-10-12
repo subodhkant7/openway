@@ -32,13 +32,14 @@ When staff reports an obstruction cleared, OpenWay refuses to declare the entran
 
 ## 3. Demo Links
 
-- **Product Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com/presentation](https://main.d2qhyx9vstga35.amplifyapp.com/presentation)
-- **Public Interactive Console**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)
+- **Product Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)
+- **Public Interactive Console**: [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console)
+- **Legacy Presentation Link**: [https://main.d2qhyx9vstga35.amplifyapp.com/presentation](https://main.d2qhyx9vstga35.amplifyapp.com/presentation) *(permanently redirects to `/`)*
 - **Demo Video**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com) *(See [DEMO.md](DEMO.md) for full scene-by-scene script and playback guide)*
 - **Judge Quickstart**: [JUDGE.md](JUDGE.md) *(60-second self-guided evaluation sequence)*
 - **Health & Telemetry**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
 
-The live demo opens directly into **OpenWay Demo Café — Side Accessible Entrance** with state **ACCESS AVAILABLE**. Zero signup, zero AWS credentials, zero Ring credentials, and zero technical setup required.
+The live interactive console opens at `/console` directly into **OpenWay Demo Café — Side Accessible Entrance** with state **ACCESS AVAILABLE**. Zero signup, zero AWS credentials, zero Ring credentials, and zero technical setup required.
 
 ---
 

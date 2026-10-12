@@ -36,7 +36,7 @@ export function Footer() {
             <a href="#safety-privacy" className={`hover:text-ow-paper transition ${focusRing}`}>
               Safety &amp; Privacy
             </a>
-            <Link href="/" className={`text-ow-mint hover:underline transition ${focusRing}`}>
+            <Link href="/console" className={`text-ow-mint hover:underline transition ${focusRing}`}>
               Operator Console
             </Link>
           </div>
@@ -83,7 +83,7 @@ export function Footer() {
               GitHub: subodhkant7/openway
             </ExternalLink>
             <span>•</span>
-            <Link href="/" className={`hover:text-ow-paper transition ${focusRing}`}>
+            <Link href="/console" className={`hover:text-ow-paper transition ${focusRing}`}>
               Interactive Console
             </Link>
           </div>

@@ -8,7 +8,7 @@ export function Navbar() {
     <header className="sticky top-0 z-50 border-b border-ow-line/80 bg-ow-navy/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
         <Link
-          href="/presentation"
+          href="/"
           className={`flex items-center gap-3 rounded-lg ${focusRing}`}
           aria-label="OpenWay Presentation Home"
         >
@@ -53,7 +53,7 @@ export function Navbar() {
           </ExternalLink>
 
           <Link
-            href="/"
+            href="/console"
             className={`inline-flex items-center gap-1.5 rounded-lg border border-ow-mint/50 bg-ow-mint-deep px-3.5 py-1.5 text-xs font-semibold text-ow-mint hover:bg-ow-mint/[0.18] transition shadow-sm ${focusRing}`}
           >
             <span>Console</span>

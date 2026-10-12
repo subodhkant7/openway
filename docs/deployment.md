@@ -6,7 +6,8 @@ This guide details how OpenWay is deployed as a durable, cloud-hosted applicatio
 
 | Resource | Value / Identifier |
 | :--- | :--- |
-| **Live App URL** | [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com) |
+| **Presentation Website** | [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com) |
+| **Interactive Console** | [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console) |
 | **Health Check** | [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health) |
 | **AWS Account** | `241638332840` |
 | **AWS Region** | `us-east-1` (N. Virginia) |

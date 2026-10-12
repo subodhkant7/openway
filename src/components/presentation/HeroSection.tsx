@@ -62,7 +62,7 @@ export function HeroSection() {
         {/* Call to Actions */}
         <div className={`mt-8 flex flex-wrap items-center gap-4 ${styles.rise3}`}>
           <Link
-            href="/"
+            href="/console"
             className={`inline-flex items-center justify-center gap-2 rounded-xl border border-ow-mint bg-ow-mint-strong px-5 py-3 text-sm font-semibold text-ow-ink hover:bg-ow-mint transition shadow-lg ${focusRing}`}
           >
             <span>Launch Live Interactive Console</span>

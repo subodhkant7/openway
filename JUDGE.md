@@ -2,15 +2,15 @@
 
 > **Primary Track**: Ring  
 > **Mini-Challenge**: AWS Builder  
-> **Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com/presentation](https://main.d2qhyx9vstga35.amplifyapp.com/presentation)  
-> **Live Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
+> **Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
+> **Live Interactive Console**: [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console)  
 > **Health Check**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
 
 ---
 
 ## 60-Second Evaluation Walkthrough
 
-1. **Open the live demo**: Open [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com). No login, no setup, no keys required.
+1. **Open the live demo**: Open [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console). No login, no setup, no keys required.
 2. **Confirm baseline**: Confirm entrance status is **`ACCESS AVAILABLE`** (Green).
 3. **Click `1. PREEMPTIVE OBSTRUCTION`**: Observe Ring motion event ingestion &rarr; Bedrock vision detection &rarr; status transitions to **`ACCESS INTERRUPTED`** &rarr; Remediation task dispatched.
 4. **Click `2. STAFF REMEDIATION`** (or click "Report Fixed"): Observe state transition to **`RECHECKING`**. Notice OpenWay **refuses to turn green** simply because staff claimed it was fixed.
