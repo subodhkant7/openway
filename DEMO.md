@@ -2,7 +2,8 @@
 
 > **Primary Track**: Ring  
 > **Mini-Challenge**: AWS Builder  
-> **Live Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
+> **Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com/presentation](https://main.d2qhyx9vstga35.amplifyapp.com/presentation)  
+> **Live Interactive Console**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
 > **System Health**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
 
 ---

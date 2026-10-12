@@ -1,0 +1,140 @@
+/* OpenWay presentation route — scoped visual effects.
+   Layout, spacing, and typography are handled with Tailwind utilities;
+   this module only holds effects that utilities cannot express cleanly. */
+
+.page {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+  text-rendering: optimizeLegibility;
+}
+
+.display {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  letter-spacing: -0.028em;
+}
+
+/* Hero backdrop: faint architectural grid + soft mint/navy light. */
+.heroBackdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 32rem at 78% -10%, rgba(127, 227, 184, 0.10), transparent 60%),
+    radial-gradient(48rem 28rem at 0% 10%, rgba(147, 180, 255, 0.07), transparent 60%);
+}
+
+.grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(244, 240, 230, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(244, 240, 230, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* Entrance animation for hero content (disabled for reduced motion). */
+.rise {
+  animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.rise2 {
+  animation: rise 700ms 120ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.rise3 {
+  animation: rise 800ms 240ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Evidence pulse travelling along a connector. */
+.connector {
+  position: relative;
+  overflow: hidden;
+}
+.connector::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(127, 227, 184, 0.9), transparent);
+  width: 40%;
+  transform: translateX(-120%);
+  animation: travel 3.2s ease-in-out infinite;
+}
+.connectorVertical::after {
+  background: linear-gradient(180deg, transparent, rgba(127, 227, 184, 0.9), transparent);
+  width: 100%;
+  height: 40%;
+  transform: translateY(-120%);
+  animation-name: travelY;
+}
+
+@keyframes travel {
+  0% {
+    transform: translateX(-120%);
+  }
+  60%,
+  100% {
+    transform: translateX(320%);
+  }
+}
+@keyframes travelY {
+  0% {
+    transform: translateY(-120%);
+  }
+  60%,
+  100% {
+    transform: translateY(320%);
+  }
+}
+
+/* Gentle "awaiting evidence" breathing for the RECHECKING indicator. */
+.breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* Screenshot frame sheen. */
+.frame {
+  box-shadow:
+    0 0 0 1px rgba(244, 240, 230, 0.06),
+    0 30px 80px -20px rgba(0, 0, 0, 0.7),
+    0 0 120px -40px rgba(127, 227, 184, 0.25);
+}
+
+.noiseFade {
+  background: linear-gradient(180deg, transparent, #0a1222 92%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .rise2,
+  .rise3,
+  .breathe {
+    animation: none;
+  }
+  .connector::after {
+    animation: none;
+    display: none;
+  }
+}

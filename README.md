@@ -32,7 +32,8 @@ When staff reports an obstruction cleared, OpenWay refuses to declare the entran
 
 ## 3. Demo Links
 
-- **Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)
+- **Product Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com/presentation](https://main.d2qhyx9vstga35.amplifyapp.com/presentation)
+- **Public Interactive Console**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)
 - **Demo Video**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com) *(See [DEMO.md](DEMO.md) for full scene-by-scene script and playback guide)*
 - **Judge Quickstart**: [JUDGE.md](JUDGE.md) *(60-second self-guided evaluation sequence)*
 - **Health & Telemetry**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
