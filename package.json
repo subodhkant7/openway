@@ -9,8 +9,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "OPENWAY_STORAGE=memory OPENWAY_ENV=test vitest run",
+    "test:watch": "OPENWAY_STORAGE=memory OPENWAY_ENV=test vitest"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1146.0",

@@ -8,7 +8,7 @@ frontend:
       commands:
         - npm run typecheck
         - npm run lint
-        - npm run test
+        - OPENWAY_STORAGE=memory OPENWAY_ENV=test npm run test
         - npm run build
   artifacts:
     baseDirectory: .next
