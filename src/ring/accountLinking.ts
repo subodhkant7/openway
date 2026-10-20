@@ -16,14 +16,22 @@ export interface ValidTokenResult {
  * Validates that the token encryption key is independent and not reused from
  * HMAC signing key, OAuth client secret, or AWS credentials.
  */
-export function validateIndependentTokenKey(candidateKey?: string): void {
+export function validateIndependentTokenKey(
+  candidateKey?: string,
+  companionKeys?: {
+    hmacKey?: string;
+    clientSecret?: string;
+    webhookSecret?: string;
+    awsSecret?: string;
+  }
+): void {
   const key = candidateKey || process.env.RING_TOKEN_ENCRYPTION_KEY;
   if (!key) return;
 
-  const hmacKey = process.env.RING_HMAC_SIGNING_KEY;
-  const webhookSecret = process.env.RING_WEBHOOK_SECRET;
-  const clientSecret = process.env.RING_CLIENT_SECRET;
-  const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
+  const hmacKey = companionKeys?.hmacKey || process.env.RING_HMAC_SIGNING_KEY;
+  const webhookSecret = companionKeys?.webhookSecret || process.env.RING_WEBHOOK_SECRET;
+  const clientSecret = companionKeys?.clientSecret || process.env.RING_CLIENT_SECRET;
+  const awsSecret = companionKeys?.awsSecret || process.env.AWS_SECRET_ACCESS_KEY;
 
   if (hmacKey && key === hmacKey) {
     throw new Error(
@@ -53,10 +61,11 @@ export function validateIndependentTokenKey(candidateKey?: string): void {
 /**
  * Derives a consistent, independent 256-bit encryption key strictly for token encryption.
  */
-export function getEncryptionKey(): Buffer {
-  validateIndependentTokenKey();
+export function getEncryptionKey(overrideKey?: string): Buffer {
+  validateIndependentTokenKey(overrideKey);
 
   const rawKey =
+    overrideKey ||
     process.env.RING_TOKEN_ENCRYPTION_KEY ||
     (process.env.NODE_ENV === "test" || process.env.OPENWAY_PROVIDER === "simulator"
       ? "openway_isolated_test_token_encryption_key_256bit_value"
@@ -92,8 +101,8 @@ export function getEncryptionKey(): Buffer {
 /**
  * Encrypts sensitive OAuth token bytes at rest using AES-256-GCM with a fresh 12-byte IV.
  */
-export function encryptToken(token: string): { ciphertext: string; iv: string; authTag: string } {
-  const key = getEncryptionKey();
+export function encryptToken(token: string, customKey?: string | Buffer): { ciphertext: string; iv: string; authTag: string } {
+  const key = Buffer.isBuffer(customKey) ? customKey : getEncryptionKey(customKey);
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
 
@@ -112,8 +121,13 @@ export function encryptToken(token: string): { ciphertext: string; iv: string; a
 /**
  * Decrypts sensitive OAuth token bytes from storage using AES-256-GCM.
  */
-export function decryptToken(ciphertext: string, fallbackIv?: string, fallbackAuthTag?: string): string {
-  const key = getEncryptionKey();
+export function decryptToken(
+  ciphertext: string,
+  fallbackIv?: string,
+  fallbackAuthTag?: string,
+  customKey?: string | Buffer
+): string {
+  const key = Buffer.isBuffer(customKey) ? customKey : getEncryptionKey(customKey);
   let ivHex = "";
   let authTagHex = "";
   let cipherHex = ciphertext;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getStorageProvider } from "@/persistence";
 import { decryptToken, RingAccountLinkingService } from "@/ring/accountLinking";
+import { getRingCredentials } from "@/ring/secretProvider";
 import { DEMO_IDS } from "@/persistence/bootstrap";
 import { validateTenantAccess } from "@/lib/tenantAuth";
 import { safeLog } from "@/ring/errors";
@@ -89,8 +90,11 @@ export async function POST(request: NextRequest) {
 
     const authenticatedUserId = operatorId || `operator_${targetVenueId}`;
 
-    // 4. Validate Server-Side HMAC Signing Key
-    const hmacKey = process.env.RING_HMAC_SIGNING_KEY || process.env.RING_WEBHOOK_SECRET;
+    // 4. Validate Server-Side HMAC Signing Key (supports runtime Secrets Manager & local env)
+    const credentials = await getRingCredentials().catch(() => null);
+    const hmacKey = credentials?.hmacSigningKey || process.env.RING_HMAC_SIGNING_KEY || process.env.RING_WEBHOOK_SECRET;
+    const tokenEncryptionKey = credentials?.tokenEncryptionKey;
+
     if (!hmacKey) {
       safeLog("error", "Ring account link failed: RING_HMAC_SIGNING_KEY is not configured");
       return NextResponse.json(
@@ -177,7 +181,8 @@ export async function POST(request: NextRequest) {
     const decryptedAccessToken = decryptToken(
       claimedRecord.encryptedAccessToken,
       claimedRecord.iv,
-      claimedRecord.authTag
+      claimedRecord.authTag,
+      tokenEncryptionKey
     );
 
     const maskedEmail = `operator***@${targetVenueId}.openway.org`;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RingWebhookHandler } from "@/ring/webhook";
+import { getRingCredentials } from "@/ring/secretProvider";
 import { RingProviderError, safeLog } from "@/ring/errors";
 
 export async function POST(request: NextRequest) {
@@ -10,8 +11,11 @@ export async function POST(request: NextRequest) {
       request.headers.get("X-Signature") ||
       request.headers.get("x-amazon-signature");
 
+    const credentials = await getRingCredentials().catch(() => null);
+    const webhookSecret = credentials?.hmacSigningKey || process.env.RING_HMAC_SIGNING_KEY || process.env.RING_WEBHOOK_SECRET;
+
     // Process webhook: verify signature, validate shape, check idempotency, and normalize
-    const result = RingWebhookHandler.processWebhook(rawBody, signatureHeader);
+    const result = RingWebhookHandler.processWebhook(rawBody, signatureHeader, webhookSecret);
 
     // Handle lifecycle events vs sensor events
     if (result.status === "accepted" && result.normalizedEvent) {

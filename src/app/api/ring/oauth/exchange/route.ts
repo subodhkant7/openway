@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encryptToken } from "@/ring/accountLinking";
+import { getRingCredentials } from "@/ring/secretProvider";
 import { getStorageProvider } from "@/persistence";
 import { safeLog } from "@/ring/errors";
 
@@ -42,9 +43,11 @@ export async function POST(request: NextRequest) {
 
     const cleanCode = code.trim();
 
-    // 2. Validate server-side OAuth credentials
-    const clientId = process.env.RING_CLIENT_ID;
-    const clientSecret = process.env.RING_CLIENT_SECRET;
+    // 2. Validate server-side OAuth credentials (supports runtime Secrets Manager & local env)
+    const credentials = await getRingCredentials().catch(() => null);
+    const clientId = credentials?.clientId || process.env.RING_CLIENT_ID;
+    const clientSecret = credentials?.clientSecret || process.env.RING_CLIENT_SECRET;
+    const tokenEncryptionKey = credentials?.tokenEncryptionKey;
     const oauthBaseUrl = (process.env.RING_OAUTH_BASE_URL || "https://oauth.ring.com").replace(/\/+$/, "");
     const apiBaseUrl = (process.env.RING_API_BASE_URL || "https://api.amazonvision.com").replace(/\/+$/, "");
 
@@ -140,8 +143,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Encrypt access and refresh tokens at rest using AES-256-GCM
-    const encAccess = encryptToken(accessToken);
-    const encRefresh = encryptToken(refreshToken);
+    const encAccess = encryptToken(accessToken, tokenEncryptionKey);
+    const encRefresh = encryptToken(refreshToken, tokenEncryptionKey);
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expiresInSec * 1000).toISOString();
