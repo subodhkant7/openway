@@ -28,16 +28,16 @@ export class RingWebhookHandler {
     signatureHeader: string | null | undefined,
     secret?: string
   ): WebhookVerificationResult {
-    const webhookSecret = secret || process.env.RING_WEBHOOK_SECRET;
+    const webhookSecret = secret || process.env.RING_HMAC_SIGNING_KEY || process.env.RING_WEBHOOK_SECRET;
 
-    // If no secret configured in development, allow if explicitly in simulator or test mode
+    // If no secret configured, allow ONLY in simulator provider when no signature header was sent
     if (!webhookSecret) {
-      if (process.env.OPENWAY_PROVIDER === "simulator" || process.env.NODE_ENV === "test") {
+      if ((process.env.OPENWAY_PROVIDER === "simulator" || process.env.NODE_ENV === "test") && !signatureHeader) {
         return { isValid: true };
       }
       return {
         isValid: false,
-        error: "Webhook secret is not configured on the server (RING_WEBHOOK_SECRET missing)",
+        error: "Webhook signing secret is not configured on the server (RING_HMAC_SIGNING_KEY missing)",
       };
     }
 
@@ -54,7 +54,12 @@ export class RingWebhookHandler {
       const expectedSignature = hmac.digest("hex");
 
       // Clean prefix if present (e.g. "sha256=")
-      const cleanReceivedSignature = signatureHeader.replace(/^sha256=/, "");
+      const cleanReceivedSignature = signatureHeader.replace(/^sha256=/, "").trim();
+
+      // Ensure hex string length matches 64 hex characters (256 bits)
+      if (!/^[0-9a-fA-F]{64}$/.test(cleanReceivedSignature)) {
+        return { isValid: false, error: "Malformed signature format (expected 64-character hex)" };
+      }
 
       // Timing-safe buffer comparison to prevent timing attacks
       const expectedBuffer = Buffer.from(expectedSignature, "hex");

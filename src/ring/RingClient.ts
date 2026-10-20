@@ -3,6 +3,7 @@ import crypto from "crypto";
 
 export interface RingClientConfig {
   accessToken?: string;
+  accessTokenProvider?: () => Promise<string>;
   baseUrl?: string;
   timeoutMs?: number;
   maxRetries?: number;
@@ -92,19 +93,31 @@ export function isValidRingMediaHost(urlStr: string): boolean {
 
 export class RingClient {
   private readonly accessToken?: string;
+  private readonly accessTokenProvider?: () => Promise<string>;
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
   private readonly maxRetries: number;
 
   constructor(config?: RingClientConfig) {
     this.accessToken = config?.accessToken ?? process.env.RING_ACCESS_TOKEN;
+    this.accessTokenProvider = config?.accessTokenProvider;
     this.baseUrl = (config?.baseUrl ?? process.env.RING_API_BASE_URL ?? "https://api.amazonvision.com").replace(/\/+$/, "");
     this.timeoutMs = config?.timeoutMs ?? 8000;
     this.maxRetries = config?.maxRetries ?? 2;
   }
 
+  public async resolveAccessToken(): Promise<string | undefined> {
+    if (this.accessTokenProvider) {
+      return await this.accessTokenProvider();
+    }
+    return this.accessToken;
+  }
+
   public hasToken(): boolean {
-    return Boolean(this.accessToken && this.accessToken.trim().length > 0);
+    return Boolean(
+      (this.accessToken && this.accessToken.trim().length > 0) ||
+      this.accessTokenProvider
+    );
   }
 
   public getBaseUrl(): string {
@@ -123,7 +136,8 @@ export class RingClient {
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${this.baseUrl}${cleanEndpoint}`;
 
-    if (!this.hasToken()) {
+    const token = await this.resolveAccessToken();
+    if (!token) {
       throw new RingProviderError({
         code: "CONFIGURATION_ERROR",
         message: "Ring access token is not configured. Set RING_ACCESS_TOKEN in server environment.",
@@ -148,7 +162,7 @@ export class RingClient {
         });
 
         const headers = new Headers(options.headers);
-        headers.set("Authorization", `Bearer ${this.accessToken}`);
+        headers.set("Authorization", `Bearer ${token}`);
         headers.set("Accept", "application/vnd.api+json, application/json");
         headers.set("X-Correlation-Id", correlationId);
 
@@ -306,7 +320,8 @@ export class RingClient {
     const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${this.baseUrl}${cleanEndpoint}`;
 
-    if (!this.hasToken()) {
+    const token = await this.resolveAccessToken();
+    if (!token) {
       throw new RingProviderError({
         code: "CONFIGURATION_ERROR",
         message: "Ring access token is not configured.",
@@ -326,7 +341,7 @@ export class RingClient {
       const response = await fetch(url, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${this.accessToken}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
           Accept: "image/jpeg, image/png, application/json",
           "X-Correlation-Id": correlationId,

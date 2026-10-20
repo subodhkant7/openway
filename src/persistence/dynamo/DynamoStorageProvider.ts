@@ -25,6 +25,9 @@ import {
   AssessmentRepository,
   RemediationTaskRepository,
   AuditEventRepository,
+  AccountLinkRepository,
+  RingUnclaimedTokenRecord,
+  StoredAccountLinkRecord,
   AssuranceTransactionContext,
 } from "../repositories";
 import { DynamoKeys, DYNAMO_INDEXES } from "./schema";
@@ -575,6 +578,193 @@ export class DynamoStorageProvider implements StorageProvider {
         })
       );
       return event;
+    },
+  };
+
+  public accountLinks: AccountLinkRepository = {
+    saveUnclaimedToken: async (record: RingUnclaimedTokenRecord): Promise<void> => {
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: {
+            PK: DynamoKeys.unclaimedAccountPk(record.ringAccountId),
+            SK: DynamoKeys.unclaimedAccountSk(),
+            GSI1PK: DynamoKeys.unclaimedAccountGsi1Pk(),
+            GSI1SK: DynamoKeys.unclaimedAccountGsi1Sk(record.createdAt, record.ringAccountId),
+            entityType: "RING_UNCLAIMED_TOKEN",
+            ...record,
+          },
+        })
+      );
+    },
+
+    listUnclaimedTokens: async (): Promise<RingUnclaimedTokenRecord[]> => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const res = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          IndexName: DYNAMO_INDEXES.GSI1,
+          KeyConditionExpression: "GSI1PK = :gsi1pk",
+          ExpressionAttributeValues: {
+            ":gsi1pk": DynamoKeys.unclaimedAccountGsi1Pk(),
+          },
+        })
+      );
+      const items = (res.Items || []).map(({ PK, SK, GSI1PK, GSI1SK, entityType, ...rest }) => rest as RingUnclaimedTokenRecord);
+      return items.filter((item) => !item.ttl || item.ttl > nowSec);
+    },
+
+    findUnclaimedTokenByAccountId: async (ringAccountId: string): Promise<RingUnclaimedTokenRecord | null> => {
+      const res = await this.docClient.send(
+        new GetCommand({
+          TableName: this.tableName,
+          Key: {
+            PK: DynamoKeys.unclaimedAccountPk(ringAccountId),
+            SK: DynamoKeys.unclaimedAccountSk(),
+          },
+        })
+      );
+      if (!res.Item) return null;
+      const { PK, SK, GSI1PK, GSI1SK, entityType, ...rest } = res.Item;
+      const record = rest as RingUnclaimedTokenRecord;
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (record.ttl && record.ttl <= nowSec) {
+        return null;
+      }
+      return record;
+    },
+
+    claimToken: async (params: {
+      userId: string;
+      venueId?: string;
+      ringAccountId: string;
+      unclaimedRecord: RingUnclaimedTokenRecord;
+    }): Promise<StoredAccountLinkRecord> => {
+      const now = new Date().toISOString();
+      const claimedRecord: StoredAccountLinkRecord = {
+        partnerUserId: params.userId,
+        ringAccountReference: params.ringAccountId,
+        encryptedAccessToken: params.unclaimedRecord.encryptedAccessToken,
+        encryptedRefreshToken: params.unclaimedRecord.encryptedRefreshToken,
+        iv: params.unclaimedRecord.iv,
+        authTag: params.unclaimedRecord.authTag,
+        expiresAt: params.unclaimedRecord.expiresAt,
+        status: "LINKED",
+        createdAt: params.unclaimedRecord.createdAt || now,
+        updatedAt: now,
+        venueId: params.venueId,
+      };
+
+      try {
+        await this.docClient.send(
+          new TransactWriteCommand({
+            TransactItems: [
+              {
+                Delete: {
+                  TableName: this.tableName,
+                  Key: {
+                    PK: DynamoKeys.unclaimedAccountPk(params.ringAccountId),
+                    SK: DynamoKeys.unclaimedAccountSk(),
+                  },
+                  ConditionExpression: "attribute_exists(PK)",
+                },
+              },
+              {
+                Put: {
+                  TableName: this.tableName,
+                  Item: {
+                    PK: DynamoKeys.accountLinkPk(params.userId),
+                    SK: DynamoKeys.accountLinkSk(params.ringAccountId),
+                    ...(params.venueId
+                      ? {
+                          GSI1PK: DynamoKeys.accountLinkVenueGsi1Pk(params.venueId),
+                          GSI1SK: DynamoKeys.accountLinkVenueGsi1Sk(params.ringAccountId),
+                        }
+                      : {}),
+                    entityType: "RING_ACCOUNT_LINK",
+                    ...claimedRecord,
+                  },
+                },
+              },
+            ],
+          })
+        );
+      } catch (err: unknown) {
+        const errorMsg = (err as Error)?.message || "";
+        if (errorMsg.includes("ConditionalCheckFailed") || (err as { name?: string })?.name === "TransactionCanceledException") {
+          throw new Error(`Ring account ${params.ringAccountId} has already been claimed or expired concurrently.`);
+        }
+        throw err;
+      }
+
+      return claimedRecord;
+    },
+
+    findByUserId: async (userId: string): Promise<StoredAccountLinkRecord | null> => {
+      const res = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          KeyConditionExpression: "PK = :pk AND begins_with(SK, :skPrefix)",
+          ExpressionAttributeValues: {
+            ":pk": DynamoKeys.accountLinkPk(userId),
+            ":skPrefix": "RING_ACCOUNT#",
+          },
+        })
+      );
+      if (!res.Items || res.Items.length === 0) return null;
+      const { PK, SK, GSI1PK, GSI1SK, entityType, ...rest } = res.Items[0];
+      return rest as StoredAccountLinkRecord;
+    },
+
+    findByVenueId: async (venueId: string): Promise<StoredAccountLinkRecord | null> => {
+      const res = await this.docClient.send(
+        new QueryCommand({
+          TableName: this.tableName,
+          IndexName: DYNAMO_INDEXES.GSI1,
+          KeyConditionExpression: "GSI1PK = :gsi1pk AND begins_with(GSI1SK, :skPrefix)",
+          ExpressionAttributeValues: {
+            ":gsi1pk": DynamoKeys.accountLinkVenueGsi1Pk(venueId),
+            ":skPrefix": "RING_ACCOUNT#",
+          },
+        })
+      );
+      if (!res.Items || res.Items.length === 0) return null;
+      const { PK, SK, GSI1PK, GSI1SK, entityType, ...rest } = res.Items[0];
+      return rest as StoredAccountLinkRecord;
+    },
+
+    saveClaimed: async (record: StoredAccountLinkRecord): Promise<StoredAccountLinkRecord> => {
+      await this.docClient.send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: {
+            PK: DynamoKeys.accountLinkPk(record.partnerUserId),
+            SK: DynamoKeys.accountLinkSk(record.ringAccountReference),
+            ...(record.venueId
+              ? {
+                  GSI1PK: DynamoKeys.accountLinkVenueGsi1Pk(record.venueId),
+                  GSI1SK: DynamoKeys.accountLinkVenueGsi1Sk(record.ringAccountReference),
+                }
+              : {}),
+            entityType: "RING_ACCOUNT_LINK",
+            ...record,
+          },
+        })
+      );
+      return record;
+    },
+
+    delete: async (userId: string, ringAccountId: string): Promise<boolean> => {
+      await this.docClient.send(
+        new DeleteCommand({
+          TableName: this.tableName,
+          Key: {
+            PK: DynamoKeys.accountLinkPk(userId),
+            SK: DynamoKeys.accountLinkSk(ringAccountId),
+          },
+        })
+      );
+      return true;
     },
   };
 

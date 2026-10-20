@@ -16,6 +16,9 @@ import {
   AssessmentRepository,
   RemediationTaskRepository,
   AuditEventRepository,
+  AccountLinkRepository,
+  RingUnclaimedTokenRecord,
+  StoredAccountLinkRecord,
 } from "./repositories";
 
 export class InMemoryStorageProvider implements StorageProvider {
@@ -26,6 +29,8 @@ export class InMemoryStorageProvider implements StorageProvider {
   private assessmentsMap = new Map<string, AccessAssessment>();
   private remediationTasksMap = new Map<string, RemediationTask>();
   private auditEventsList: AuditEvent[] = [];
+  private unclaimedTokensMap = new Map<string, RingUnclaimedTokenRecord>();
+  private accountLinksMap = new Map<string, StoredAccountLinkRecord>();
 
   constructor() {
     this.seedDefaults();
@@ -39,6 +44,8 @@ export class InMemoryStorageProvider implements StorageProvider {
     this.assessmentsMap.clear();
     this.remediationTasksMap.clear();
     this.auditEventsList = [];
+    this.unclaimedTokensMap.clear();
+    this.accountLinksMap.clear();
     this.seedDefaults();
   }
 
@@ -267,6 +274,87 @@ export class InMemoryStorageProvider implements StorageProvider {
     append: async (event: AuditEvent) => {
       this.auditEventsList.push({ ...event });
       return event;
+    },
+  };
+
+  public accountLinks: AccountLinkRepository = {
+    saveUnclaimedToken: async (record: RingUnclaimedTokenRecord): Promise<void> => {
+      this.unclaimedTokensMap.set(record.ringAccountId, { ...record });
+    },
+
+    listUnclaimedTokens: async (): Promise<RingUnclaimedTokenRecord[]> => {
+      const nowSec = Math.floor(Date.now() / 1000);
+      return Array.from(this.unclaimedTokensMap.values()).filter((r) => r.ttl > nowSec);
+    },
+
+    findUnclaimedTokenByAccountId: async (ringAccountId: string): Promise<RingUnclaimedTokenRecord | null> => {
+      const rec = this.unclaimedTokensMap.get(ringAccountId);
+      if (!rec) return null;
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (rec.ttl <= nowSec) {
+        this.unclaimedTokensMap.delete(ringAccountId);
+        return null;
+      }
+      return { ...rec };
+    },
+
+    claimToken: async (params: {
+      userId: string;
+      venueId?: string;
+      ringAccountId: string;
+      unclaimedRecord: RingUnclaimedTokenRecord;
+    }): Promise<StoredAccountLinkRecord> => {
+      // Atomic concurrency guard: verify token is still unclaimed
+      if (!this.unclaimedTokensMap.has(params.ringAccountId)) {
+        throw new Error(`Unclaimed token for Ring account ${params.ringAccountId} has already been claimed or expired.`);
+      }
+      this.unclaimedTokensMap.delete(params.ringAccountId);
+
+      const now = new Date().toISOString();
+      const claimedRecord: StoredAccountLinkRecord = {
+        partnerUserId: params.userId,
+        ringAccountReference: params.ringAccountId,
+        encryptedAccessToken: params.unclaimedRecord.encryptedAccessToken,
+        encryptedRefreshToken: params.unclaimedRecord.encryptedRefreshToken,
+        iv: params.unclaimedRecord.iv,
+        authTag: params.unclaimedRecord.authTag,
+        expiresAt: params.unclaimedRecord.expiresAt,
+        status: "LINKED",
+        createdAt: params.unclaimedRecord.createdAt || now,
+        updatedAt: now,
+        venueId: params.venueId,
+      };
+
+      this.accountLinksMap.set(params.userId, claimedRecord);
+      return claimedRecord;
+    },
+
+    findByUserId: async (userId: string): Promise<StoredAccountLinkRecord | null> => {
+      const rec = this.accountLinksMap.get(userId);
+      return rec ? { ...rec } : null;
+    },
+
+    findByVenueId: async (venueId: string): Promise<StoredAccountLinkRecord | null> => {
+      for (const rec of this.accountLinksMap.values()) {
+        if (rec.venueId === venueId) {
+          return { ...rec };
+        }
+      }
+      return null;
+    },
+
+    saveClaimed: async (record: StoredAccountLinkRecord): Promise<StoredAccountLinkRecord> => {
+      this.accountLinksMap.set(record.partnerUserId, { ...record });
+      return record;
+    },
+
+    delete: async (userId: string, ringAccountId: string): Promise<boolean> => {
+      const existing = this.accountLinksMap.get(userId);
+      if (existing && existing.ringAccountReference === ringAccountId) {
+        this.accountLinksMap.delete(userId);
+        return true;
+      }
+      return false;
     },
   };
 }

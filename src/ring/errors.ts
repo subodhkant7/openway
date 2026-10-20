@@ -15,6 +15,8 @@ export type RingErrorCode =
   | "MEDIA_TOO_LARGE"
   | "PAYLOAD_TOO_LARGE"
   | "SERVICE_UNAVAILABLE"
+  | "RING_NOT_LINKED"
+  | "ACCOUNT_RELINK_REQUIRED"
   | "UNKNOWN_PROVIDER_ERROR";
 
 export interface RingErrorDetails {

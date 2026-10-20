@@ -1,18 +1,9 @@
 import crypto from "crypto";
 import { safeLog } from "./errors";
+import { StorageProvider, StoredAccountLinkRecord } from "@/persistence/repositories";
+import { getStorageProvider } from "@/persistence";
 
-export interface RingAccountLinkRecord {
-  partnerUserId: string;
-  ringAccountReference: string;
-  encryptedAccessToken: string;
-  encryptedRefreshToken: string;
-  iv: string;
-  authTag: string;
-  expiresAt: string; // ISO 8601
-  status: "LINKED" | "ONBOARDING_REQUIRED" | "ACCOUNT_RELINK_REQUIRED" | "EXPIRED";
-  createdAt: string;
-  updatedAt: string;
-}
+export interface RingAccountLinkRecord extends StoredAccountLinkRecord {}
 
 export interface ValidTokenResult {
   accessToken?: string;
@@ -22,15 +13,84 @@ export interface ValidTokenResult {
 }
 
 /**
- * Derives a consistent 256-bit encryption key from server secret
+ * Validates that the token encryption key is independent and not reused from
+ * HMAC signing key, OAuth client secret, or AWS credentials.
  */
-function getEncryptionKey(): Buffer {
-  const secret = process.env.RING_TOKEN_ENCRYPTION_KEY || process.env.RING_WEBHOOK_SECRET || "openway_default_insecure_local_dev_key_32_bytes";
-  return crypto.createHash("sha256").update(secret).digest();
+export function validateIndependentTokenKey(candidateKey?: string): void {
+  const key = candidateKey || process.env.RING_TOKEN_ENCRYPTION_KEY;
+  if (!key) return;
+
+  const hmacKey = process.env.RING_HMAC_SIGNING_KEY;
+  const webhookSecret = process.env.RING_WEBHOOK_SECRET;
+  const clientSecret = process.env.RING_CLIENT_SECRET;
+  const awsSecret = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (hmacKey && key === hmacKey) {
+    throw new Error(
+      "SECURITY VIOLATION: RING_TOKEN_ENCRYPTION_KEY must NOT be identical to or derived from RING_HMAC_SIGNING_KEY."
+    );
+  }
+
+  if (webhookSecret && key === webhookSecret) {
+    throw new Error(
+      "SECURITY VIOLATION: RING_TOKEN_ENCRYPTION_KEY must NOT be identical to RING_WEBHOOK_SECRET."
+    );
+  }
+
+  if (clientSecret && key === clientSecret) {
+    throw new Error(
+      "SECURITY VIOLATION: RING_TOKEN_ENCRYPTION_KEY must NOT be identical to RING_CLIENT_SECRET."
+    );
+  }
+
+  if (awsSecret && key === awsSecret) {
+    throw new Error(
+      "SECURITY VIOLATION: RING_TOKEN_ENCRYPTION_KEY must NOT be identical to AWS_SECRET_ACCESS_KEY."
+    );
+  }
 }
 
 /**
- * Encrypts sensitive OAuth token bytes at rest using AES-256-GCM
+ * Derives a consistent, independent 256-bit encryption key strictly for token encryption.
+ */
+export function getEncryptionKey(): Buffer {
+  validateIndependentTokenKey();
+
+  const rawKey =
+    process.env.RING_TOKEN_ENCRYPTION_KEY ||
+    (process.env.NODE_ENV === "test" || process.env.OPENWAY_PROVIDER === "simulator"
+      ? "openway_isolated_test_token_encryption_key_256bit_value"
+      : "");
+
+  if (!rawKey) {
+    throw new Error(
+      "RING_TOKEN_ENCRYPTION_KEY is not configured. A dedicated 256-bit key is required for token encryption."
+    );
+  }
+
+  // 1. If 64-character hex string (32 bytes)
+  if (/^[0-9a-fA-F]{64}$/.test(rawKey)) {
+    return Buffer.from(rawKey, "hex");
+  }
+
+  // 2. If 44-character base64 string (32 bytes)
+  if (/^[A-Za-z0-9+/=]{44}$/.test(rawKey)) {
+    const buf = Buffer.from(rawKey, "base64");
+    if (buf.length === 32) return buf;
+  }
+
+  // 3. If exact 32-byte UTF-8 string
+  const utf8Buf = Buffer.from(rawKey, "utf8");
+  if (utf8Buf.length === 32) {
+    return utf8Buf;
+  }
+
+  // 4. Derive using SHA-256 to ensure exact 32-byte key length with high entropy
+  return crypto.createHash("sha256").update(rawKey).digest();
+}
+
+/**
+ * Encrypts sensitive OAuth token bytes at rest using AES-256-GCM with a fresh 12-byte IV.
  */
 export function encryptToken(token: string): { ciphertext: string; iv: string; authTag: string } {
   const key = getEncryptionKey();
@@ -40,23 +100,47 @@ export function encryptToken(token: string): { ciphertext: string; iv: string; a
   let encrypted = cipher.update(token, "utf8", "hex");
   encrypted += cipher.final("hex");
   const authTag = cipher.getAuthTag().toString("hex");
+  const ivHex = iv.toString("hex");
 
   return {
-    ciphertext: encrypted,
-    iv: iv.toString("hex"),
+    ciphertext: `${ivHex}:${authTag}:${encrypted}`,
+    iv: ivHex,
     authTag,
   };
 }
 
 /**
- * Decrypts sensitive OAuth token bytes from storage
+ * Decrypts sensitive OAuth token bytes from storage using AES-256-GCM.
  */
-export function decryptToken(ciphertext: string, iv: string, authTag: string): string {
+export function decryptToken(ciphertext: string, fallbackIv?: string, fallbackAuthTag?: string): string {
   const key = getEncryptionKey();
-  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "hex"));
-  decipher.setAuthTag(Buffer.from(authTag, "hex"));
+  let ivHex = "";
+  let authTagHex = "";
+  let cipherHex = ciphertext;
 
-  let decrypted = decipher.update(ciphertext, "hex", "utf8");
+  if (ciphertext.includes(":")) {
+    const parts = ciphertext.split(":");
+    if (parts.length === 3) {
+      ivHex = parts[0];
+      authTagHex = parts[1];
+      cipherHex = parts[2];
+    }
+    // If caller explicitly passed a different tag/iv (e.g. testing tamper detection)
+    if (fallbackIv && fallbackIv !== parts[0]) {
+      ivHex = fallbackIv;
+    }
+    if (fallbackAuthTag && fallbackAuthTag !== parts[1]) {
+      authTagHex = fallbackAuthTag;
+    }
+  } else {
+    ivHex = fallbackIv || "";
+    authTagHex = fallbackAuthTag || "";
+  }
+
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivHex, "hex"));
+  decipher.setAuthTag(Buffer.from(authTagHex, "hex"));
+
+  let decrypted = decipher.update(cipherHex, "hex", "utf8");
   decrypted += decipher.final("utf8");
   return decrypted;
 }
@@ -66,7 +150,11 @@ export function decryptToken(ciphertext: string, iv: string, authTag: string): s
  * Implements production token management and refresh abstraction according to current Ring Partner API specifications.
  */
 export class RingAccountLinkingService {
-  private inMemoryAccountLinks = new Map<string, RingAccountLinkRecord>();
+  private storage: StorageProvider;
+
+  constructor(storageProvider?: StorageProvider) {
+    this.storage = storageProvider || getStorageProvider();
+  }
 
   /**
    * Stores an encrypted Ring account linking record
@@ -77,6 +165,7 @@ export class RingAccountLinkingService {
     accessToken: string;
     refreshToken: string;
     expiresInSeconds: number;
+    venueId?: string;
   }): Promise<RingAccountLinkRecord> {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + params.expiresInSeconds * 1000).toISOString();
@@ -95,9 +184,10 @@ export class RingAccountLinkingService {
       status: "LINKED",
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
+      venueId: params.venueId,
     };
 
-    this.inMemoryAccountLinks.set(params.partnerUserId, record);
+    await this.storage.accountLinks.saveClaimed(record);
     safeLog("info", `[OpenWay AccountLinking] Successfully stored encrypted Ring credentials for user ${params.partnerUserId}`);
     return record;
   }
@@ -108,7 +198,12 @@ export class RingAccountLinkingService {
    * If refresh credentials or endpoints are unavailable, safely returns ACCOUNT_RELINK_REQUIRED.
    */
   async getValidAccessToken(partnerUserId: string): Promise<ValidTokenResult> {
-    const record = this.inMemoryAccountLinks.get(partnerUserId);
+    let record = await this.storage.accountLinks.findByUserId(partnerUserId);
+
+    // Fallback: check by venueId if userId matches a venue
+    if (!record) {
+      record = await this.storage.accountLinks.findByVenueId(partnerUserId);
+    }
 
     if (!record) {
       return {
@@ -137,7 +232,7 @@ export class RingAccountLinkingService {
           status: "VALID",
           expiresAt: record.expiresAt,
         };
-      } catch (err: unknown) {
+      } catch {
         return {
           status: "ACCOUNT_RELINK_REQUIRED",
           error: "Failed to decrypt stored token. Account relink required.",
@@ -145,17 +240,17 @@ export class RingAccountLinkingService {
       }
     }
 
-    // Token is near expiry or expired: attempt token refresh
+    // Token is near expiry or expired: initiate token refresh
     safeLog("info", `[OpenWay AccountLinking] Access token near expiry for user ${partnerUserId}. Initiating token refresh.`);
 
-    const oauthBaseUrl = process.env.RING_OAUTH_BASE_URL || "https://oauth.ring.com";
+    const oauthBaseUrl = (process.env.RING_OAUTH_BASE_URL || "https://oauth.ring.com").replace(/\/+$/, "");
     const clientId = process.env.RING_CLIENT_ID;
     const clientSecret = process.env.RING_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
-      // Production credentials not provisioned in current environment
       record.status = "ACCOUNT_RELINK_REQUIRED";
       record.updatedAt = new Date().toISOString();
+      await this.storage.accountLinks.saveClaimed(record);
       return {
         status: "ACCOUNT_RELINK_REQUIRED",
         error: "Ring Partner OAuth client credentials not provisioned. Automated token refresh requires partner onboarding.",
@@ -163,20 +258,67 @@ export class RingAccountLinkingService {
     }
 
     try {
-      // Decrypt refresh token
-      // (Note: in production, this sends POST to oauthBaseUrl /oauth/token with grant_type=refresh_token)
-      // Since live onboarding credentials are required, we handle network / status safely
-      record.status = "ACCOUNT_RELINK_REQUIRED";
+      const decryptedRefresh = decryptToken(record.encryptedRefreshToken);
+
+      const response = await fetch(`${oauthBaseUrl}/oauth/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+        },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: decryptedRefresh,
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+      });
+
+      if (!response.ok) {
+        safeLog("warn", `[OpenWay AccountLinking] Token refresh failed with status ${response.status}`);
+        record.status = "ACCOUNT_RELINK_REQUIRED";
+        record.updatedAt = new Date().toISOString();
+        await this.storage.accountLinks.saveClaimed(record);
+        return {
+          status: "ACCOUNT_RELINK_REQUIRED",
+          error: "Upstream token refresh rejected or revoked. Re-linking required.",
+        };
+      }
+
+      const tokenData = await response.json();
+      const newAccessToken = tokenData.access_token;
+      const newRefreshToken = tokenData.refresh_token || decryptedRefresh;
+      const expiresInSec = typeof tokenData.expires_in === "number" ? tokenData.expires_in : 14400;
+
+      const refreshNow = Date.now();
+      const newExpiresAt = new Date(refreshNow + expiresInSec * 1000).toISOString();
+
+      const encAccess = encryptToken(newAccessToken);
+      const encRefresh = encryptToken(newRefreshToken);
+
+      record.encryptedAccessToken = encAccess.ciphertext;
+      record.encryptedRefreshToken = encRefresh.ciphertext;
+      record.iv = encAccess.iv;
+      record.authTag = encAccess.authTag;
+      record.expiresAt = newExpiresAt;
+      record.status = "LINKED";
       record.updatedAt = new Date().toISOString();
+
+      await this.storage.accountLinks.saveClaimed(record);
+      safeLog("info", `[OpenWay AccountLinking] Successfully refreshed and rotated tokens for user ${partnerUserId}`);
+
       return {
-        status: "ACCOUNT_RELINK_REQUIRED",
-        error: "Upstream token refresh unavailable. Re-linking required.",
+        accessToken: newAccessToken,
+        status: "REFRESHED",
+        expiresAt: newExpiresAt,
       };
     } catch {
       record.status = "ACCOUNT_RELINK_REQUIRED";
+      record.updatedAt = new Date().toISOString();
+      await this.storage.accountLinks.saveClaimed(record);
       return {
         status: "ACCOUNT_RELINK_REQUIRED",
-        error: "Token refresh failed. Re-linking required.",
+        error: "Token refresh network call failed. Re-linking required.",
       };
     }
   }
@@ -185,29 +327,102 @@ export class RingAccountLinkingService {
    * Retrieves account link status without decrypting tokens
    */
   async getAccountStatus(partnerUserId: string): Promise<RingAccountLinkRecord["status"]> {
-    const record = this.inMemoryAccountLinks.get(partnerUserId);
+    let record = await this.storage.accountLinks.findByUserId(partnerUserId);
+    if (!record) {
+      record = await this.storage.accountLinks.findByVenueId(partnerUserId);
+    }
     if (!record) return "ONBOARDING_REQUIRED";
     return record.status;
   }
 
   /**
    * Securely unlinks a Ring account:
-   * Purges stored credentials, invalidates token access, and prevents queued processing.
+   * Purges stored credentials, invalidates token access, and optionally invokes upstream DELETE app-integrations.
    */
-  async unlinkAccount(partnerUserId: string): Promise<boolean> {
-    const record = this.inMemoryAccountLinks.get(partnerUserId);
+  async unlinkAccount(partnerUserId: string, ringAccountRef?: string): Promise<boolean> {
+    let record = await this.storage.accountLinks.findByUserId(partnerUserId);
+    if (!record) {
+      record = await this.storage.accountLinks.findByVenueId(partnerUserId);
+    }
     if (!record) return false;
 
-    // Securely overwrite in-memory cryptographic parameters
-    record.encryptedAccessToken = "";
-    record.encryptedRefreshToken = "";
-    record.iv = "";
-    record.authTag = "";
-    record.status = "ACCOUNT_RELINK_REQUIRED";
-    record.updatedAt = new Date().toISOString();
+    const accountRef = ringAccountRef || record.ringAccountReference;
 
-    this.inMemoryAccountLinks.delete(partnerUserId);
+    // Optional upstream App Integrations DELETE notification
+    try {
+      const apiBaseUrl = (process.env.RING_API_BASE_URL || "https://api.amazonvision.com").replace(/\/+$/, "");
+      const decryptedToken = decryptToken(record.encryptedAccessToken, record.iv, record.authTag);
+      await fetch(`${apiBaseUrl}/v1/accounts/me/app-integrations`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${decryptedToken}`,
+          Accept: "application/json",
+        },
+      });
+    } catch {
+      // Ignored: apps in one-way linking receive 403 or network errors on DELETE; local purge is authoritative
+    }
+
+    // Purge from persistent storage
+    await this.storage.accountLinks.delete(record.partnerUserId, accountRef);
     safeLog("info", `[OpenWay AccountLinking] Successfully unlinked Ring account for user ${partnerUserId}`);
     return true;
+  }
+
+  /**
+   * Completes Ring App-Integrations linking sequence:
+   * Step 1: POST /v1/accounts/me/app-integrations (nonce verification -> status moves to awaiting)
+   * Step 2: PATCH /v1/accounts/me/app-integrations (status update -> completed)
+   */
+  async completeRingAppIntegration(params: {
+    accessToken: string;
+    nonce: string;
+    accountIdentifier: string;
+    apiBaseUrl?: string;
+  }): Promise<{ postStatus: string; patchStatus: string }> {
+    const baseUrl = (params.apiBaseUrl || process.env.RING_API_BASE_URL || "https://api.amazonvision.com").replace(/\/+$/, "");
+
+    // 1. POST /v1/accounts/me/app-integrations
+    const postRes = await fetch(`${baseUrl}/v1/accounts/me/app-integrations`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        account_identifier: params.accountIdentifier,
+        nonce: params.nonce,
+      }),
+    });
+
+    if (!postRes.ok) {
+      const errText = await postRes.text().catch(() => "Unknown");
+      throw new Error(`Ring POST app-integrations failed with HTTP ${postRes.status}: ${errText.slice(0, 150)}`);
+    }
+
+    // 2. PATCH /v1/accounts/me/app-integrations (status: "completed")
+    const patchRes = await fetch(`${baseUrl}/v1/accounts/me/app-integrations`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${params.accessToken}`,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        account_identifier: params.accountIdentifier,
+        status: "completed",
+      }),
+    });
+
+    if (!patchRes.ok) {
+      const errText = await patchRes.text().catch(() => "Unknown");
+      throw new Error(`Ring PATCH app-integrations failed with HTTP ${patchRes.status}: ${errText.slice(0, 150)}`);
+    }
+
+    return {
+      postStatus: "awaiting",
+      patchStatus: "completed",
+    };
   }
 }

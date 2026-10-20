@@ -6,6 +6,10 @@ import { z } from "zod";
 export const EnvSchema = z.object({
   OPENWAY_PROVIDER: z.enum(["simulator", "playground", "api"]).default("simulator"),
   RING_ACCESS_TOKEN: z.string().optional(),
+  RING_CLIENT_ID: z.string().optional(),
+  RING_CLIENT_SECRET: z.string().optional(),
+  RING_HMAC_SIGNING_KEY: z.string().optional(),
+  RING_TOKEN_ENCRYPTION_KEY: z.string().optional(),
   RING_API_BASE_URL: z.string().url().default("https://api.amazonvision.com"),
   RING_OAUTH_BASE_URL: z.string().url().default("https://oauth.ring.com"),
   RING_WEBHOOK_SECRET: z.string().optional(),

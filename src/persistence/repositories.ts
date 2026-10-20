@@ -54,6 +54,47 @@ export interface AuditEventRepository {
   append(event: AuditEvent): Promise<AuditEvent>;
 }
 
+export interface RingUnclaimedTokenRecord {
+  ringAccountId: string;
+  encryptedAccessToken: string;
+  encryptedRefreshToken: string;
+  iv: string;
+  authTag: string;
+  expiresAt: string;
+  createdAt: string;
+  ttl: number; // epoch seconds for DynamoDB TTL
+}
+
+export interface StoredAccountLinkRecord {
+  partnerUserId: string;
+  ringAccountReference: string;
+  encryptedAccessToken: string;
+  encryptedRefreshToken: string;
+  iv: string;
+  authTag: string;
+  expiresAt: string;
+  status: "LINKED" | "ONBOARDING_REQUIRED" | "ACCOUNT_RELINK_REQUIRED" | "EXPIRED";
+  createdAt: string;
+  updatedAt: string;
+  venueId?: string;
+}
+
+export interface AccountLinkRepository {
+  saveUnclaimedToken(record: RingUnclaimedTokenRecord): Promise<void>;
+  listUnclaimedTokens(): Promise<RingUnclaimedTokenRecord[]>;
+  findUnclaimedTokenByAccountId(ringAccountId: string): Promise<RingUnclaimedTokenRecord | null>;
+  claimToken(params: {
+    userId: string;
+    venueId?: string;
+    ringAccountId: string;
+    unclaimedRecord: RingUnclaimedTokenRecord;
+  }): Promise<StoredAccountLinkRecord>;
+  findByUserId(userId: string): Promise<StoredAccountLinkRecord | null>;
+  findByVenueId(venueId: string): Promise<StoredAccountLinkRecord | null>;
+  saveClaimed(record: StoredAccountLinkRecord): Promise<StoredAccountLinkRecord>;
+  delete(userId: string, ringAccountId: string): Promise<boolean>;
+}
+
 /**
  * Transactional Context for atomic state transitions.
  * Ensures assessment update + audit event + remediation task change succeed or roll back together.
@@ -75,6 +116,7 @@ export interface StorageProvider {
   assessments: AssessmentRepository;
   remediations: RemediationTaskRepository;
   auditEvents: AuditEventRepository;
+  accountLinks: AccountLinkRepository;
 
   /**
    * Executes operations within an atomic transaction boundary.
@@ -82,3 +124,4 @@ export interface StorageProvider {
    */
   transaction<T>(fn: (tx: AssuranceTransactionContext) => Promise<T>): Promise<T>;
 }
+

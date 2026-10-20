@@ -67,9 +67,15 @@ export const DynamoKeys = {
   idempotencyPk: (key: string) => `IDEMPOTENCY#${key}`,
   idempotencySk: () => "RECORD",
 
-  // Account Linking (Scaffolding)
+  // Account Linking & One-Way OAuth Token Keys
   accountLinkPk: (userId: string) => `USER#${userId}`,
   accountLinkSk: (ringAccountRef: string) => `RING_ACCOUNT#${ringAccountRef}`,
+  accountLinkVenueGsi1Pk: (venueId: string) => `VENUE#${venueId}`,
+  accountLinkVenueGsi1Sk: (ringAccountRef: string) => `RING_ACCOUNT#${ringAccountRef}`,
+  unclaimedAccountPk: (ringAccountId: string) => `RING_UNCLAIMED#${ringAccountId}`,
+  unclaimedAccountSk: () => "TOKEN",
+  unclaimedAccountGsi1Pk: () => "RING_UNCLAIMED",
+  unclaimedAccountGsi1Sk: (timestamp: string, ringAccountId: string) => `${timestamp}#${ringAccountId}`,
 };
 
 export interface DynamoBaseItem {
