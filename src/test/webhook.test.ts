@@ -80,6 +80,19 @@ describe("RingWebhookHandler", () => {
     expect(result.normalizedEvent?.deviceId).toBe("cam_doorbell_123");
   });
 
+  it("accepts valid signatures with sha256= prefix format", () => {
+    const payload = JSON.stringify({
+      meta: { request_id: "req_prefix_test" },
+      data: { id: "d_prefix", type: "motion", attributes: { source: "cam_prefix" } },
+    });
+    const hexSig = sign(payload, secret);
+    const prefixedSig = `sha256=${hexSig}`;
+
+    const result = RingWebhookHandler.processWebhook(payload, prefixedSig, secret);
+    expect(result.status).toBe("accepted");
+    expect(result.eventId).toBe("req_prefix_test");
+  });
+
   it("rejects an invalid HMAC signature with SIGNATURE_INVALID", () => {
     const payload = {
       meta: { request_id: "req_invalid_sig" },
@@ -91,6 +104,37 @@ describe("RingWebhookHandler", () => {
 
     expect(() =>
       RingWebhookHandler.processWebhook(rawBody, badSignature, secret)
+    ).toThrowError(
+      expect.objectContaining({
+        code: "SIGNATURE_INVALID",
+        statusCode: 401,
+      })
+    );
+  });
+
+  it("rejects malformed signature header formats (wrong length or non-hex)", () => {
+    const payload = JSON.stringify({
+      meta: { request_id: "req_malformed_sig" },
+      data: { id: "d_1", type: "motion" },
+    });
+
+    // Too short
+    expect(() =>
+      RingWebhookHandler.processWebhook(payload, "sha256=abcd1234", secret)
+    ).toThrowError(
+      expect.objectContaining({
+        code: "SIGNATURE_INVALID",
+        statusCode: 401,
+      })
+    );
+
+    // Non-hex characters
+    expect(() =>
+      RingWebhookHandler.processWebhook(
+        payload,
+        "sha256=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
+        secret
+      )
     ).toThrowError(
       expect.objectContaining({
         code: "SIGNATURE_INVALID",
