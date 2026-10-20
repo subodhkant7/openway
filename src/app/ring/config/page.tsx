@@ -71,7 +71,11 @@ export default function RingConfigPage() {
   }, []);
 
   const handleUnlink = async () => {
-    if (!confirm("Are you sure you want to disconnect this Ring account? Stored tokens will be purged.")) {
+    if (
+      !confirm(
+        "Delete local Ring credentials from OpenWay?\n\nThis purges all stored tokens in OpenWay and prevents further Ring API access. Subsequent requests will NOT be able to reuse them.\n\nNOTE: Ring-side authorization remains active until you remove OpenWay from your Ring Account Integrations page (https://account.ring.com/account/integrations)."
+      )
+    ) {
       return;
     }
 
@@ -88,14 +92,16 @@ export default function RingConfigPage() {
 
       const data = await res.json();
       if (!res.ok) {
-        setError(data.message || "Failed to disconnect Ring account.");
+        setError(data.message || "Failed to purge local credentials.");
         return;
       }
 
-      setSuccessMessage("Ring account disconnected and local credentials purged.");
+      setSuccessMessage(
+        "Local credentials successfully purged from OpenWay. To revoke Ring authorization and remote token issuance, please remove OpenWay in Ring Account Integrations."
+      );
       await fetchData();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Network error during account disconnect.");
+      setError(err instanceof Error ? err.message : "Network error during local credential purge.");
     } finally {
       setUnlinking(false);
     }
@@ -301,17 +307,31 @@ export default function RingConfigPage() {
               </p>
             </div>
 
-            {isLinked && (
-              <button
-                type="button"
-                onClick={handleUnlink}
-                disabled={unlinking}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition disabled:opacity-50"
+            <div className="flex items-center gap-2">
+              <a
+                href="https://account.ring.com/account/integrations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-500/20 transition"
+                id="manage-ring-connection-btn"
               >
-                <Trash2 className="h-3.5 w-3.5 text-rose-400" />
-                <span>Disconnect Ring Account</span>
-              </button>
-            )}
+                <span>Manage Ring Connection</span>
+                <ExternalLink className="h-3.5 w-3.5 text-sky-400" />
+              </a>
+
+              {isLinked && (
+                <button
+                  type="button"
+                  onClick={handleUnlink}
+                  disabled={unlinking}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 transition disabled:opacity-50"
+                  id="purge-local-credentials-btn"
+                >
+                  <Trash2 className="h-3.5 w-3.5 text-rose-400" />
+                  <span>Delete Local Credentials</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
@@ -339,6 +359,26 @@ export default function RingConfigPage() {
                 Backend completes Ring App-Integrations with POST + PATCH (<code className="text-slate-300">completed</code>).
               </p>
             </div>
+          </div>
+
+          {/* One-Way Architecture & Revocation Policy Notice */}
+          <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3.5 text-xs text-slate-300 space-y-1">
+            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5 text-sky-400" />
+              <span>One-Way Linking Architecture & Revocation Policy</span>
+            </div>
+            <p className="text-slate-400 leading-relaxed">
+              OpenWay uses official One-Way (Ring-Driven) account linking. Ring’s API does not support upstream unlinking from partner applications. To completely revoke OpenWay’s authorization and halt token issuance, remove OpenWay directly from your{" "}
+              <a
+                href="https://account.ring.com/account/integrations"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:underline inline-flex items-center gap-0.5"
+              >
+                Ring Account Integrations <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+              . Purging local credentials in OpenWay deletes locally stored tokens so subsequent requests cannot reuse them, but does not revoke remote Ring authorization.
+            </p>
           </div>
         </section>
 

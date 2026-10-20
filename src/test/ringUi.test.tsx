@@ -160,8 +160,8 @@ describe("Ring Integration UI Routes", () => {
       expect(screen.getByText("Deterministic Simulator")).toBeInTheDocument();
       expect(screen.getByText("Linked & Authorized")).toBeInTheDocument();
       expect(screen.getByText(/ava1.ring.account.test_venue_cafe/)).toBeInTheDocument();
-      expect(screen.getByText("Front Ramp Camera")).toBeInTheDocument();
-      expect(screen.getByText("Disconnect Ring Account")).toBeInTheDocument();
+      expect(screen.getByText("Delete Local Credentials")).toBeInTheDocument();
+      expect(screen.getByText("Manage Ring Connection")).toBeInTheDocument();
     });
   });
 });

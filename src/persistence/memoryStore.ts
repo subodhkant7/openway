@@ -284,14 +284,18 @@ export class InMemoryStorageProvider implements StorageProvider {
 
     listUnclaimedTokens: async (): Promise<RingUnclaimedTokenRecord[]> => {
       const nowSec = Math.floor(Date.now() / 1000);
-      return Array.from(this.unclaimedTokensMap.values()).filter((r) => r.ttl > nowSec);
+      return Array.from(this.unclaimedTokensMap.values()).filter((r) => {
+        const expiry = r.claimExpiresAtEpoch ?? (r.claimExpiresAt ? Math.floor(new Date(r.claimExpiresAt).getTime() / 1000) : r.ttl);
+        return typeof expiry === "number" && expiry > nowSec;
+      });
     },
 
     findUnclaimedTokenByAccountId: async (ringAccountId: string): Promise<RingUnclaimedTokenRecord | null> => {
       const rec = this.unclaimedTokensMap.get(ringAccountId);
       if (!rec) return null;
       const nowSec = Math.floor(Date.now() / 1000);
-      if (rec.ttl <= nowSec) {
+      const expiry = rec.claimExpiresAtEpoch ?? (rec.claimExpiresAt ? Math.floor(new Date(rec.claimExpiresAt).getTime() / 1000) : rec.ttl);
+      if (typeof expiry !== "number" || expiry <= nowSec) {
         this.unclaimedTokensMap.delete(ringAccountId);
         return null;
       }
@@ -304,10 +308,47 @@ export class InMemoryStorageProvider implements StorageProvider {
       ringAccountId: string;
       unclaimedRecord: RingUnclaimedTokenRecord;
     }): Promise<StoredAccountLinkRecord> => {
-      // Atomic concurrency guard: verify token is still unclaimed
-      if (!this.unclaimedTokensMap.has(params.ringAccountId)) {
-        throw new Error(`Unclaimed token for Ring account ${params.ringAccountId} has already been claimed or expired.`);
+      // 1. Enforce explicit claim-expiration attribute presence on parameter
+      const hasParamExpiry =
+        params.unclaimedRecord?.claimExpiresAtEpoch !== undefined ||
+        Boolean(params.unclaimedRecord?.claimExpiresAt);
+      if (!hasParamExpiry) {
+        throw new Error(
+          `Unclaimed token for Ring account ${params.ringAccountId} is missing required claim-expiration attribute.`
+        );
       }
+
+      // 2. Verify existence in unclaimed storage
+      const rec = this.unclaimedTokensMap.get(params.ringAccountId);
+      if (!rec) {
+        throw new Error(
+          `Unclaimed token for Ring account ${params.ringAccountId} has already been claimed or does not exist.`
+        );
+      }
+
+      // 3. Enforce explicit claim-expiration attribute presence on stored record
+      const hasStoredExpiry = rec.claimExpiresAtEpoch !== undefined || Boolean(rec.claimExpiresAt);
+      if (!hasStoredExpiry) {
+        throw new Error(
+          `Unclaimed token for Ring account ${params.ringAccountId} is missing required claim-expiration attribute.`
+        );
+      }
+
+      // 3. Enforce expiration timestamp
+      const nowSec = Math.floor(Date.now() / 1000);
+      const expirySec = rec.claimExpiresAtEpoch ?? (rec.claimExpiresAt ? Math.floor(new Date(rec.claimExpiresAt).getTime() / 1000) : 0);
+      if (expirySec <= nowSec) {
+        this.unclaimedTokensMap.delete(params.ringAccountId);
+        throw new Error(`Unclaimed token for Ring account ${params.ringAccountId} has expired.`);
+      }
+
+      // 4. Duplicate claim guard
+      const existing = this.accountLinksMap.get(params.userId);
+      if (existing && existing.ringAccountReference === params.ringAccountId) {
+        throw new Error(`Ring account ${params.ringAccountId} has already been claimed by user ${params.userId}.`);
+      }
+
+      // 5. Atomic claim
       this.unclaimedTokensMap.delete(params.ringAccountId);
 
       const now = new Date().toISOString();
@@ -337,6 +378,15 @@ export class InMemoryStorageProvider implements StorageProvider {
     findByVenueId: async (venueId: string): Promise<StoredAccountLinkRecord | null> => {
       for (const rec of this.accountLinksMap.values()) {
         if (rec.venueId === venueId) {
+          return { ...rec };
+        }
+      }
+      return null;
+    },
+
+    findByRingAccountId: async (ringAccountId: string): Promise<StoredAccountLinkRecord | null> => {
+      for (const rec of this.accountLinksMap.values()) {
+        if (rec.ringAccountReference === ringAccountId) {
           return { ...rec };
         }
       }

@@ -163,10 +163,32 @@ export async function POST(request: NextRequest) {
         unclaimedRecord: matchedTokenRecord,
       });
     } catch (claimErr: unknown) {
-      safeLog("warn", "Concurrent claim detected or token already claimed", {
+      const msg = claimErr instanceof Error ? claimErr.message : "Unknown error";
+      safeLog("warn", "Token claim failed", {
         accountId: matchedTokenRecord.ringAccountId,
-        error: claimErr instanceof Error ? claimErr.message : "Unknown",
+        error: msg,
       });
+
+      if (msg.includes("expired")) {
+        return NextResponse.json(
+          {
+            error: "TOKEN_EXPIRED",
+            message: "Unclaimed Ring token has expired. Please restart linking from the Ring AppStore.",
+          },
+          { status: 410 }
+        );
+      }
+
+      if (msg.includes("missing required claim-expiration")) {
+        return NextResponse.json(
+          {
+            error: "INVALID_UNCLAIMED_TOKEN",
+            message: "Unclaimed Ring token record is missing required claim expiration attributes.",
+          },
+          { status: 400 }
+        );
+      }
+
       return NextResponse.json(
         {
           error: "TOKEN_ALREADY_CLAIMED",

@@ -60,9 +60,11 @@ export interface RingUnclaimedTokenRecord {
   encryptedRefreshToken: string;
   iv: string;
   authTag: string;
-  expiresAt: string;
+  expiresAt: string; // OAuth access-token expiration ISO string
   createdAt: string;
-  ttl: number; // epoch seconds for DynamoDB TTL
+  ttl: number; // numeric Unix epoch seconds for DynamoDB TTL
+  claimExpiresAt: string; // Explicit unclaimed-token claim expiration ISO timestamp
+  claimExpiresAtEpoch: number; // Explicit claim expiration numeric Unix-epoch seconds for atomic comparison
 }
 
 export interface StoredAccountLinkRecord {
@@ -91,6 +93,7 @@ export interface AccountLinkRepository {
   }): Promise<StoredAccountLinkRecord>;
   findByUserId(userId: string): Promise<StoredAccountLinkRecord | null>;
   findByVenueId(venueId: string): Promise<StoredAccountLinkRecord | null>;
+  findByRingAccountId(ringAccountId: string): Promise<StoredAccountLinkRecord | null>;
   saveClaimed(record: StoredAccountLinkRecord): Promise<StoredAccountLinkRecord>;
   delete(userId: string, ringAccountId: string): Promise<boolean>;
 }

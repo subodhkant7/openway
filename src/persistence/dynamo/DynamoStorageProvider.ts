@@ -611,7 +611,10 @@ export class DynamoStorageProvider implements StorageProvider {
         })
       );
       const items = (res.Items || []).map(({ PK, SK, GSI1PK, GSI1SK, entityType, ...rest }) => rest as RingUnclaimedTokenRecord);
-      return items.filter((item) => !item.ttl || item.ttl > nowSec);
+      return items.filter((item) => {
+        const expiry = item.claimExpiresAtEpoch ?? (item.claimExpiresAt ? Math.floor(new Date(item.claimExpiresAt).getTime() / 1000) : item.ttl);
+        return typeof expiry === "number" && expiry > nowSec;
+      });
     },
 
     findUnclaimedTokenByAccountId: async (ringAccountId: string): Promise<RingUnclaimedTokenRecord | null> => {
@@ -628,7 +631,8 @@ export class DynamoStorageProvider implements StorageProvider {
       const { PK, SK, GSI1PK, GSI1SK, entityType, ...rest } = res.Item;
       const record = rest as RingUnclaimedTokenRecord;
       const nowSec = Math.floor(Date.now() / 1000);
-      if (record.ttl && record.ttl <= nowSec) {
+      const expiry = record.claimExpiresAtEpoch ?? (record.claimExpiresAt ? Math.floor(new Date(record.claimExpiresAt).getTime() / 1000) : record.ttl);
+      if (typeof expiry !== "number" || expiry <= nowSec) {
         return null;
       }
       return record;
@@ -640,7 +644,31 @@ export class DynamoStorageProvider implements StorageProvider {
       ringAccountId: string;
       unclaimedRecord: RingUnclaimedTokenRecord;
     }): Promise<StoredAccountLinkRecord> => {
-      const now = new Date().toISOString();
+      const now = new Date();
+      const nowEpoch = Math.floor(now.getTime() / 1000);
+
+      // 1. Verify that unclaimedRecord has an explicit claim-expiration attribute
+      const hasExpiryAttr =
+        params.unclaimedRecord.claimExpiresAtEpoch !== undefined ||
+        Boolean(params.unclaimedRecord.claimExpiresAt);
+      if (!hasExpiryAttr) {
+        throw new Error(
+          `Unclaimed token for Ring account ${params.ringAccountId} is missing required claim-expiration attribute.`
+        );
+      }
+
+      // 2. Reject if client-side check shows already expired
+      const claimExpiryEpoch =
+        params.unclaimedRecord.claimExpiresAtEpoch ??
+        (params.unclaimedRecord.claimExpiresAt
+          ? Math.floor(new Date(params.unclaimedRecord.claimExpiresAt).getTime() / 1000)
+          : 0);
+
+      if (claimExpiryEpoch <= nowEpoch) {
+        throw new Error(`Unclaimed token for Ring account ${params.ringAccountId} has expired.`);
+      }
+
+      const nowIso = now.toISOString();
       const claimedRecord: StoredAccountLinkRecord = {
         partnerUserId: params.userId,
         ringAccountReference: params.ringAccountId,
@@ -650,8 +678,8 @@ export class DynamoStorageProvider implements StorageProvider {
         authTag: params.unclaimedRecord.authTag,
         expiresAt: params.unclaimedRecord.expiresAt,
         status: "LINKED",
-        createdAt: params.unclaimedRecord.createdAt || now,
-        updatedAt: now,
+        createdAt: params.unclaimedRecord.createdAt || nowIso,
+        updatedAt: nowIso,
         venueId: params.venueId,
       };
 
@@ -666,7 +694,15 @@ export class DynamoStorageProvider implements StorageProvider {
                     PK: DynamoKeys.unclaimedAccountPk(params.ringAccountId),
                     SK: DynamoKeys.unclaimedAccountSk(),
                   },
-                  ConditionExpression: "attribute_exists(PK)",
+                  // Atomically verify that record exists, is not already claimed, has the claim-expiration attribute, and has not expired
+                  ConditionExpression:
+                    "attribute_exists(PK) AND attribute_exists(#claimExpiresAtEpoch) AND #claimExpiresAtEpoch > :nowEpoch",
+                  ExpressionAttributeNames: {
+                    "#claimExpiresAtEpoch": "claimExpiresAtEpoch",
+                  },
+                  ExpressionAttributeValues: {
+                    ":nowEpoch": nowEpoch,
+                  },
                 },
               },
               {
@@ -684,6 +720,7 @@ export class DynamoStorageProvider implements StorageProvider {
                     entityType: "RING_ACCOUNT_LINK",
                     ...claimedRecord,
                   },
+                  ConditionExpression: "attribute_not_exists(PK)",
                 },
               },
             ],
@@ -691,8 +728,13 @@ export class DynamoStorageProvider implements StorageProvider {
         );
       } catch (err: unknown) {
         const errorMsg = (err as Error)?.message || "";
-        if (errorMsg.includes("ConditionalCheckFailed") || (err as { name?: string })?.name === "TransactionCanceledException") {
-          throw new Error(`Ring account ${params.ringAccountId} has already been claimed or expired concurrently.`);
+        if (
+          errorMsg.includes("ConditionalCheckFailed") ||
+          (err as { name?: string })?.name === "TransactionCanceledException"
+        ) {
+          throw new Error(
+            `Ring account ${params.ringAccountId} has already been claimed, has expired, or is missing required claim-expiration attribute.`
+          );
         }
         throw err;
       }
@@ -726,6 +768,23 @@ export class DynamoStorageProvider implements StorageProvider {
             ":gsi1pk": DynamoKeys.accountLinkVenueGsi1Pk(venueId),
             ":skPrefix": "RING_ACCOUNT#",
           },
+        })
+      );
+      if (!res.Items || res.Items.length === 0) return null;
+      const { PK, SK, GSI1PK, GSI1SK, entityType, ...rest } = res.Items[0];
+      return rest as StoredAccountLinkRecord;
+    },
+
+    findByRingAccountId: async (ringAccountId: string): Promise<StoredAccountLinkRecord | null> => {
+      const res = await this.docClient.send(
+        new ScanCommand({
+          TableName: this.tableName,
+          FilterExpression: "entityType = :entityType AND ringAccountReference = :ref",
+          ExpressionAttributeValues: {
+            ":entityType": "RING_ACCOUNT_LINK",
+            ":ref": ringAccountId,
+          },
+          Limit: 1,
         })
       );
       if (!res.Items || res.Items.length === 0) return null;

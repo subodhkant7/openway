@@ -350,8 +350,12 @@ export class RingAccountLinkingService {
   }
 
   /**
-   * Securely unlinks a Ring account:
-   * Purges stored credentials, invalidates token access, and optionally invokes upstream DELETE app-integrations.
+   * Securely unlinks a Ring account locally:
+   * In One-Way (Ring-Driven) account linking, Ring does not support upstream DELETE on
+   * /v1/accounts/me/app-integrations (returns HTTP 403).
+   * OpenWay safely deletes local credentials and invalidates token access so subsequent requests
+   * cannot reuse them. Remote authorization revocation must be performed by the user directly in
+   * Ring Account Integrations (https://account.ring.com/account/integrations).
    */
   async unlinkAccount(partnerUserId: string, ringAccountRef?: string): Promise<boolean> {
     let record = await this.storage.accountLinks.findByUserId(partnerUserId);
@@ -362,24 +366,9 @@ export class RingAccountLinkingService {
 
     const accountRef = ringAccountRef || record.ringAccountReference;
 
-    // Optional upstream App Integrations DELETE notification
-    try {
-      const apiBaseUrl = (process.env.RING_API_BASE_URL || "https://api.amazonvision.com").replace(/\/+$/, "");
-      const decryptedToken = decryptToken(record.encryptedAccessToken, record.iv, record.authTag);
-      await fetch(`${apiBaseUrl}/v1/accounts/me/app-integrations`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${decryptedToken}`,
-          Accept: "application/json",
-        },
-      });
-    } catch {
-      // Ignored: apps in one-way linking receive 403 or network errors on DELETE; local purge is authoritative
-    }
-
-    // Purge from persistent storage
+    // Purge from persistent storage safely
     await this.storage.accountLinks.delete(record.partnerUserId, accountRef);
-    safeLog("info", `[OpenWay AccountLinking] Successfully unlinked Ring account for user ${partnerUserId}`);
+    safeLog("info", `[OpenWay AccountLinking] Successfully purged local Ring credentials for user ${partnerUserId}`);
     return true;
   }
 

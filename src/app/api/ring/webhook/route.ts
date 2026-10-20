@@ -22,17 +22,26 @@ export async function POST(request: NextRequest) {
       const eventType = result.normalizedEvent.eventType;
 
       if (eventType === "app_integration_removed") {
+        const accountId =
+          (result.normalizedEvent.rawReference as { accountId?: string })?.accountId ||
+          result.normalizedEvent.deviceId;
+
         safeLog("info", "Processing Ring app_integration_removed webhook event", {
           eventId: result.eventId,
-          source: result.normalizedEvent.deviceId,
+          accountId,
         });
+
         const { getStorageProvider } = await import("@/persistence");
         const storage = getStorageProvider();
-        const accountId = result.normalizedEvent.deviceId;
-        // Clean up linked record if associated with this Ring account
-        const existing = await storage.accountLinks.findByVenueId(accountId);
+
+        // 1. Clean up claimed account link by ringAccountId or venueId
+        let existing = await storage.accountLinks.findByRingAccountId(accountId);
+        if (!existing) {
+          existing = await storage.accountLinks.findByVenueId(accountId);
+        }
         if (existing) {
           await storage.accountLinks.delete(existing.partnerUserId, existing.ringAccountReference);
+          safeLog("info", `Invalidated and purged local credentials for Ring account ${accountId}`);
         }
       } else if (eventType === "motion" || eventType === "motion_detected" || eventType === "button_press") {
         // Enqueue event for asynchronous background assurance analysis without blocking webhook response

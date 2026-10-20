@@ -166,10 +166,10 @@ export class RingWebhookHandler {
       const data = official.data;
       const attrs = data.attributes || {};
 
-      // Unique event / request ID for deduplication
+      const accountId = meta.account_id || (attrs as { account_id?: string }).account_id;
       eventId = meta.request_id || data.id;
       eventType = attrs.event_type || data.type || "motion";
-      deviceId = attrs.source || "unknown_device";
+      deviceId = attrs.source || accountId || "unknown_device";
 
       const rawTime = attrs.timestamp || meta.time || Date.now();
       timestamp = typeof rawTime === "number" ? new Date(rawTime).toISOString() : String(rawTime);
@@ -227,6 +227,9 @@ export class RingWebhookHandler {
         eventType,
         deviceId,
         eventId,
+        ...("data" in payload && (payload as { meta?: { account_id?: string } }).meta?.account_id
+          ? { accountId: (payload as { meta?: { account_id?: string } }).meta?.account_id }
+          : {}),
       },
     };
 

@@ -221,6 +221,7 @@ describe("Ring One-Way Account Linking & Token Management", () => {
       const storage = getStorageProvider();
       const encAccess = encryptToken(mockAccessToken);
       const encRefresh = encryptToken(mockRefreshToken);
+      const nowEpoch = Math.floor(Date.now() / 1000);
       await storage.accountLinks.saveUnclaimedToken({
         ringAccountId: mockAccountId,
         encryptedAccessToken: encAccess.ciphertext,
@@ -229,7 +230,9 @@ describe("Ring One-Way Account Linking & Token Management", () => {
         authTag: encAccess.authTag,
         expiresAt: new Date(Date.now() + 14400 * 1000).toISOString(),
         createdAt: new Date().toISOString(),
-        ttl: Math.floor(Date.now() / 1000) + 900,
+        ttl: nowEpoch + 900,
+        claimExpiresAt: new Date((nowEpoch + 900) * 1000).toISOString(),
+        claimExpiresAtEpoch: nowEpoch + 900,
       });
     });
 
@@ -413,6 +416,108 @@ describe("Ring One-Way Account Linking & Token Management", () => {
       const res2 = await linkRoute(req2);
       expect(res2.status).toBeGreaterThanOrEqual(400);
     });
+
+    it("rejects claiming an expired unclaimed token and enforces claim window", async () => {
+      const storage = getStorageProvider();
+      const expiredAccountId = "ava1.ring.account.expired_token_test";
+      const encAccess = encryptToken("Atza|expired_claim_token");
+      const encRefresh = encryptToken("Atzr|expired_claim_refresh");
+      const expiredEpoch = Math.floor(Date.now() / 1000) - 30; // expired 30s ago
+
+      const expiredRecord = {
+        ringAccountId: expiredAccountId,
+        encryptedAccessToken: encAccess.ciphertext,
+        encryptedRefreshToken: encRefresh.ciphertext,
+        iv: encAccess.iv,
+        authTag: encAccess.authTag,
+        expiresAt: new Date(Date.now() + 14400 * 1000).toISOString(),
+        createdAt: new Date(Date.now() - 1000 * 1000).toISOString(),
+        ttl: expiredEpoch,
+        claimExpiresAt: new Date(expiredEpoch * 1000).toISOString(),
+        claimExpiresAtEpoch: expiredEpoch,
+      };
+
+      await storage.accountLinks.saveUnclaimedToken(expiredRecord);
+
+      // Verify that listUnclaimedTokens and findUnclaimedTokenByAccountId filter out expired tokens
+      const found = await storage.accountLinks.findUnclaimedTokenByAccountId(expiredAccountId);
+      expect(found).toBeNull();
+
+      // Verify that calling claimToken directly on expired record throws
+      await expect(
+        storage.accountLinks.claimToken({
+          userId: "operator_expired_test",
+          ringAccountId: expiredAccountId,
+          unclaimedRecord: expiredRecord,
+        })
+      ).rejects.toThrow(/expired/i);
+    });
+
+    it("rejects claiming an unclaimed token missing claim-expiration attribute", async () => {
+      const storage = getStorageProvider();
+      const missingExpiryId = "ava1.ring.account.missing_expiry_test";
+      const encAccess = encryptToken("Atza|missing_expiry_token");
+      const encRefresh = encryptToken("Atzr|missing_expiry_refresh");
+
+      const recordMissingExpiry = {
+        ringAccountId: missingExpiryId,
+        encryptedAccessToken: encAccess.ciphertext,
+        encryptedRefreshToken: encRefresh.ciphertext,
+        iv: encAccess.iv,
+        authTag: encAccess.authTag,
+        expiresAt: new Date(Date.now() + 14400 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+        ttl: Math.floor(Date.now() / 1000) + 900,
+      } as any;
+
+      await expect(
+        storage.accountLinks.claimToken({
+          userId: "operator_missing_expiry_test",
+          ringAccountId: missingExpiryId,
+          unclaimedRecord: recordMissingExpiry,
+        })
+      ).rejects.toThrow(/missing required claim-expiration attribute/i);
+    });
+
+    it("rejects duplicate claims and concurrent claims racing against expiry", async () => {
+      const storage = getStorageProvider();
+      const duplicateAccountId = "ava1.ring.account.duplicate_claim_test";
+      const encAccess = encryptToken("Atza|duplicate_claim_token");
+      const encRefresh = encryptToken("Atzr|duplicate_claim_refresh");
+      const nowEpoch = Math.floor(Date.now() / 1000);
+
+      const validRecord = {
+        ringAccountId: duplicateAccountId,
+        encryptedAccessToken: encAccess.ciphertext,
+        encryptedRefreshToken: encRefresh.ciphertext,
+        iv: encAccess.iv,
+        authTag: encAccess.authTag,
+        expiresAt: new Date(Date.now() + 14400 * 1000).toISOString(),
+        createdAt: new Date().toISOString(),
+        ttl: nowEpoch + 900,
+        claimExpiresAt: new Date((nowEpoch + 900) * 1000).toISOString(),
+        claimExpiresAtEpoch: nowEpoch + 900,
+      };
+
+      await storage.accountLinks.saveUnclaimedToken(validRecord);
+
+      // Claim 1 succeeds
+      const claim1 = await storage.accountLinks.claimToken({
+        userId: "operator_dup_user_1",
+        ringAccountId: duplicateAccountId,
+        unclaimedRecord: validRecord,
+      });
+      expect(claim1.status).toBe("LINKED");
+
+      // Claim 2 fails because token is already claimed
+      await expect(
+        storage.accountLinks.claimToken({
+          userId: "operator_dup_user_2",
+          ringAccountId: duplicateAccountId,
+          unclaimedRecord: validRecord,
+        })
+      ).rejects.toThrow(/already been claimed/i);
+    });
   });
 
   describe("4. Automated Token Refresh & Account Unlinking", () => {
@@ -490,7 +595,7 @@ describe("Ring One-Way Account Linking & Token Management", () => {
       expect(stored?.status).toBe("ACCOUNT_RELINK_REQUIRED");
     });
 
-    it("unlinks account and purges local credentials via /api/ring/oauth/unlink", async () => {
+    it("unlinks account, purges local credentials, and proves NO upstream DELETE request is made", async () => {
       const storage = getStorageProvider();
       const service = new RingAccountLinkingService(storage);
 
@@ -503,6 +608,13 @@ describe("Ring One-Way Account Linking & Token Management", () => {
         venueId: DEMO_IDS.VENUE_ID,
       });
 
+      // Spy on fetch to prove One-Way unlink does NOT make an upstream DELETE request
+      const fetchCalls: { url: string; method?: string }[] = [];
+      global.fetch = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+        fetchCalls.push({ url: url.toString(), method: init?.method });
+        return new Response(JSON.stringify({ success: true }), { status: 200 });
+      }) as unknown as typeof fetch;
+
       const req = new NextRequest("http://localhost:3000/api/ring/oauth/unlink", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -513,9 +625,21 @@ describe("Ring One-Way Account Linking & Token Management", () => {
       expect(res.status).toBe(200);
       const data = await res.json();
       expect(data.unlinked).toBe(true);
+      expect(data.localPurged).toBe(true);
+      expect(data.ringManageUrl).toBe("https://account.ring.com/account/integrations");
+      expect(data.ringRevocationNotice).toBeDefined();
 
+      // Crucial test requirement: prove no upstream DELETE call was made
+      const deleteCalls = fetchCalls.filter((c) => c.method === "DELETE" && c.url.includes("app-integrations"));
+      expect(deleteCalls).toHaveLength(0);
+
+      // Verify local credentials were fully purged and subsequent requests cannot reuse them
       const status = await service.getAccountStatus("operator_venue_maple_cafe");
       expect(status).toBe("ONBOARDING_REQUIRED");
+
+      const validTokenRes = await service.getValidAccessToken("operator_venue_maple_cafe");
+      expect(validTokenRes.status).toBe("ONBOARDING_REQUIRED");
+      expect(validTokenRes.accessToken).toBeUndefined();
     });
   });
 
@@ -543,7 +667,7 @@ describe("Ring One-Way Account Linking & Token Management", () => {
       expect(result.error).toContain("Malformed");
     });
 
-    it("handles app_integration_removed lifecycle webhook event and cleans up local account link", async () => {
+    it("handles app_integration_removed lifecycle webhook event and cleans up local account link by Ring account ID", async () => {
       const storage = getStorageProvider();
       const service = new RingAccountLinkingService(storage);
 
@@ -554,8 +678,12 @@ describe("Ring One-Way Account Linking & Token Management", () => {
         accessToken: "linked_token",
         refreshToken: "linked_refresh",
         expiresInSeconds: 3600,
-        venueId: accountId,
+        venueId: "venue_unlinked_test_venue",
       });
+
+      // Verify account link exists before webhook
+      const beforeLink = await storage.accountLinks.findByRingAccountId(accountId);
+      expect(beforeLink).not.toBeNull();
 
       const payload = JSON.stringify({
         meta: {
@@ -592,8 +720,11 @@ describe("Ring One-Way Account Linking & Token Management", () => {
       expect(data.status).toBe("accepted");
 
       // Verify account was removed from storage
-      const stored = await storage.accountLinks.findByVenueId(accountId);
+      const stored = await storage.accountLinks.findByRingAccountId(accountId);
       expect(stored).toBeNull();
+
+      const byUser = await storage.accountLinks.findByUserId("operator_demo_linked");
+      expect(byUser).toBeNull();
     });
 
     it("deduplicates repeat webhook deliveries idempotently", () => {

@@ -148,7 +148,10 @@ export async function POST(request: NextRequest) {
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + expiresInSec * 1000).toISOString();
-    const ttlSeconds = Math.floor(now.getTime() / 1000) + 15 * 60; // 15-minute TTL for unclaimed record
+    const claimWindowSeconds = 15 * 60; // 15-minute claim window per specification
+    const claimExpiresAtEpoch = Math.floor(now.getTime() / 1000) + claimWindowSeconds;
+    const claimExpiresAt = new Date(claimExpiresAtEpoch * 1000).toISOString();
+    const ttlSeconds = claimExpiresAtEpoch; // DynamoDB TTL numeric Unix epoch seconds
 
     // 6. Persist unclaimed token record into bounded, queryable storage
     const storage = getStorageProvider();
@@ -158,9 +161,11 @@ export async function POST(request: NextRequest) {
       encryptedRefreshToken: encRefresh.ciphertext,
       iv: encAccess.iv,
       authTag: encAccess.authTag,
-      expiresAt,
+      expiresAt, // Upstream OAuth access-token expiration
       createdAt: now.toISOString(),
       ttl: ttlSeconds,
+      claimExpiresAt,
+      claimExpiresAtEpoch,
     });
 
     safeLog("info", `Successfully stored unclaimed Ring tokens for account ${ringAccountId}`);

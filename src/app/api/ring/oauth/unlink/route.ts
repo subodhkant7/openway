@@ -31,7 +31,13 @@ export async function POST(request: NextRequest) {
         success: true,
         unlinked,
         status: "ACCOUNT_RELINK_REQUIRED",
-        message: "Ring account successfully disconnected and credentials purged.",
+        message:
+          "Local credentials safely purged from OpenWay. To revoke Ring authorization and token issuance, manage or remove OpenWay in your Ring Account Integrations page.",
+        ringManageUrl: "https://account.ring.com/account/integrations",
+        localPurged: true,
+        remoteRevocationRequired: true,
+        ringRevocationNotice:
+          "OpenWay uses One-Way account linking. You must remove OpenWay from Ring Account Integrations to revoke remote Ring authorization.",
       },
       { status: 200 }
     );
