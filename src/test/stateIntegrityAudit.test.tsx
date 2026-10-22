@@ -16,7 +16,6 @@ describe("Regression Hardening: State Integrity & Gatekeeper Reports", () => {
       deviceId: "cam_front_entrance",
       componentId: "component_video_01",
       deviceName: "Front Ramp Camera (Ring Wired Doorbell Plus)",
-      deviceKind: "doorbell",
     },
     requirements: {
       pathwayClear: true,
