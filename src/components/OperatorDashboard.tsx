@@ -94,12 +94,15 @@ export function OperatorDashboard() {
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const lastStateRef = useRef<AssuranceState | "UNCONFIGURED" | null>(null);
+  const latestAssuranceReqRef = useRef<number>(0);
 
   // Fetch Camera Image Evidence
   const loadCameraSnapshot = useCallback(async (deviceId: string, mode: string) => {
     setSnapshotLoading(true);
     try {
-      const res = await fetch(`/api/ring/snapshot?deviceId=${encodeURIComponent(deviceId)}&mode=${mode}`);
+      const res = await fetch(`/api/ring/snapshot?deviceId=${encodeURIComponent(deviceId)}&mode=${mode}&t=${Date.now()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
       if (data.success && (data.imageEvidence || data.snapshot)) {
         setSnapshotEvidence(data.imageEvidence || data.snapshot);
@@ -113,11 +116,19 @@ export function OperatorDashboard() {
 
   // Fetch entrance assurance, latest evidence, observation, and timeline
   const loadAssuranceData = useCallback(async (entranceId: string) => {
+    const reqTimestamp = Date.now();
+    latestAssuranceReqRef.current = reqTimestamp;
+
     try {
       const [assureRes, timeRes] = await Promise.all([
-        fetch(`/api/entrances/${entranceId}/assurance`),
-        fetch(`/api/entrances/${entranceId}/timeline?limit=25`),
+        fetch(`/api/entrances/${entranceId}/assurance?t=${reqTimestamp}`, { cache: "no-store" }),
+        fetch(`/api/entrances/${entranceId}/timeline?limit=25&t=${reqTimestamp}`, { cache: "no-store" }),
       ]);
+
+      // Guard against out-of-order delayed responses overwriting newer authoritative state
+      if (reqTimestamp < latestAssuranceReqRef.current) {
+        return;
+      }
 
       if (assureRes.ok) {
         const assureData = await assureRes.json();
@@ -318,6 +329,9 @@ export function OperatorDashboard() {
       });
       const data = await res.json();
       if (data.success && data.result) {
+        if (data.result.resultingState && data.result.resultingState !== "REJECTED") {
+          setAssuranceStatus(data.result.resultingState as AssuranceState);
+        }
         setFeedback(
           `${data.result.description} → Resulting State: ${data.result.resultingState}`
         );
@@ -348,6 +362,7 @@ export function OperatorDashboard() {
       });
       const data = await res.json();
       if (data.success) {
+        setAssuranceStatus("AVAILABLE");
         setFeedback("Demo baseline cleanly restored: Entrance state reset to AVAILABLE.");
         await loadAssuranceData(selectedEntrance.id);
         if (selectedEntrance.cameraBinding?.deviceId) {

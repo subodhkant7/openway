@@ -29,15 +29,24 @@ export async function GET(
     const recentObservations = await storage.observations.listByEntranceId(entranceId, 1);
     const latestObservation = recentObservations[0] || null;
 
-    return NextResponse.json({
-      entrance,
-      state: currentAssessment?.state || "UNKNOWN",
-      currentAssessment,
-      activeRemediation,
-      latestEvidence,
-      latestObservation,
-      requirements: entrance.requirements,
-    });
+    return NextResponse.json(
+      {
+        entrance,
+        state: currentAssessment?.state || "UNKNOWN",
+        currentAssessment,
+        activeRemediation,
+        latestEvidence,
+        latestObservation,
+        requirements: entrance.requirements,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error) {
     console.error("[API] Failed to get assurance state:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

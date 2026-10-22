@@ -371,7 +371,7 @@ export class RecheckService {
     // 5. Max attempts exhausted or evidence unavailable/stale &rarr; Transition to UNKNOWN
     transitionAssuranceState({
       entranceId: entrance.id,
-      currentState: "RECHECKING",
+      currentState: currentState,
       nextState: "UNKNOWN",
       trigger: "VERIFICATION_UNAVAILABLE",
       correlationId,
@@ -379,8 +379,9 @@ export class RecheckService {
       reason: lastGatekeeperResult?.explanation || "Verification evidence unavailable or insufficient.",
     });
 
+    const unknownAssessmentId = `assess_unknown_${Date.now()}`;
     await this.storage.assessments.save({
-      id: `assess_unknown_${Date.now()}`,
+      id: unknownAssessmentId,
       entranceId: entrance.id,
       state: "UNKNOWN",
       reasonCode: lastGatekeeperResult?.reasonCode || "VERIFICATION_UNAVAILABLE",
@@ -390,6 +391,21 @@ export class RecheckService {
       policyVersion: "1.0.0",
       assessedAt: new Date().toISOString(),
       previousAssessmentId: latestAssessment?.id,
+    });
+
+    await this.storage.auditEvents.append({
+      id: `audit_${Date.now()}_assessment_unknown`,
+      type: "ASSESSMENT_UNKNOWN",
+      timestamp: new Date().toISOString(),
+      correlationId,
+      entityType: "ASSESSMENT",
+      entityId: unknownAssessmentId,
+      metadata: {
+        entranceId: entrance.id,
+        previousState: currentState,
+        nextState: "UNKNOWN",
+        reason: lastGatekeeperResult?.explanation || "Verification evidence unavailable or insufficient.",
+      },
     });
 
     const { telemetry } = await import("@/telemetry/metrics");

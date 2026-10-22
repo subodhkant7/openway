@@ -25,7 +25,16 @@ export async function GET(
     }
 
     const timeline = await storage.auditEvents.listByEntranceId(entranceId, limit);
-    return NextResponse.json({ entranceId, timeline });
+    return NextResponse.json(
+      { entranceId, timeline },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error) {
     console.error("[API] Failed to get entrance timeline:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

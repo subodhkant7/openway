@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
   // 5. Append audit event
   const resetAuditEvent: AuditEvent = {
     id: `audit_reset_${Date.now()}`,
-    type: "ACCESS_VERIFIED_RESTORED",
+    type: "DEMO_BASELINE_RESET",
     timestamp: now,
     correlationId: `demo_reset_${Date.now()}`,
     entityType: "ENTRANCE",

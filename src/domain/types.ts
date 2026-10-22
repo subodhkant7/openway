@@ -128,7 +128,8 @@ export type AuditEventType =
   | "VERIFICATION_INITIATED"
   | "ACCESS_VERIFIED_RESTORED"
   | "ASSESSMENT_UNKNOWN"
-  | "WRONG_CAMERA_REJECTED";
+  | "WRONG_CAMERA_REJECTED"
+  | "DEMO_BASELINE_RESET";
 
 export interface AuditEvent {
   id: string;
