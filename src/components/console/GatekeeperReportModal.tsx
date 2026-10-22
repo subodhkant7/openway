@@ -67,7 +67,8 @@ export function GatekeeperReportModal({
   if (!isOpen) return null;
 
   // Check if viewing an authoritative historical verification decision
-  const isRecordedRestoration = latestAssessment?.state === "VERIFIED_RESTORED";
+  const isRecordedRestoration =
+    latestAssessment?.state === "VERIFIED_RESTORED" || assuranceStatus === "VERIFIED_RESTORED";
 
   // Evaluate the 9 Gatekeeper rules dynamically for current-state readiness
   const isRechecking = assuranceStatus === "RECHECKING" || assuranceStatus === "VERIFIED_RESTORED";

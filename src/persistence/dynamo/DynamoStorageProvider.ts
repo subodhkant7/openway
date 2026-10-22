@@ -56,6 +56,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.venuePk(id),
             SK: DynamoKeys.venueSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -101,6 +102,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.entrancePk(id),
             SK: DynamoKeys.entranceSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -163,6 +165,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.evidencePk(id),
             SK: DynamoKeys.evidenceSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -215,6 +218,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.observationPk(id),
             SK: DynamoKeys.observationSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -286,6 +290,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.assessmentPk(id),
             SK: DynamoKeys.assessmentSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -301,6 +306,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.currentAssessmentPk(entranceId),
             SK: DynamoKeys.currentAssessmentSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -390,6 +396,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.taskPk(id),
             SK: DynamoKeys.taskSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
@@ -405,6 +412,7 @@ export class DynamoStorageProvider implements StorageProvider {
             PK: DynamoKeys.activeTaskPk(entranceId),
             SK: DynamoKeys.activeTaskSk(),
           },
+          ConsistentRead: true,
         })
       );
       if (!res.Item) return null;
