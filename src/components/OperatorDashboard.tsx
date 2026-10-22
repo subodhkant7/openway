@@ -95,6 +95,7 @@ export function OperatorDashboard() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const lastStateRef = useRef<AssuranceState | "UNCONFIGURED" | null>(null);
   const latestAssuranceReqRef = useRef<number>(0);
+  const lastScenarioTimeRef = useRef<number>(0);
 
   // Fetch Camera Image Evidence
   const loadCameraSnapshot = useCallback(async (deviceId: string, mode: string) => {
@@ -132,26 +133,20 @@ export function OperatorDashboard() {
 
       if (assureRes.ok) {
         const assureData = await assureRes.json();
-        setAssuranceStatus((prev) => {
-          if (
-            prev === "VERIFIED_RESTORED" &&
-            assureData.state !== "VERIFIED_RESTORED" &&
-            assureData.currentAssessment?.state !== "VERIFIED_RESTORED"
-          ) {
-            return prev;
-          }
-          return assureData.state;
-        });
+        const incomingTime = assureData.currentAssessment?.assessedAt
+          ? new Date(assureData.currentAssessment.assessedAt).getTime()
+          : 0;
+
+        // If an optimistic scenario was run within the last 5 seconds and incoming assessment is older, do not regress!
+        const isStaleRead =
+          Date.now() - lastScenarioTimeRef.current < 5000 &&
+          incomingTime < lastScenarioTimeRef.current;
+
+        if (!isStaleRead) {
+          setAssuranceStatus(assureData.state);
+          setLatestAssessment(assureData.currentAssessment || null);
+        }
         setActiveRemediation(assureData.activeRemediation || null);
-        setLatestAssessment((prev) => {
-          if (
-            prev?.state === "VERIFIED_RESTORED" &&
-            assureData.currentAssessment?.state !== "VERIFIED_RESTORED"
-          ) {
-            return prev;
-          }
-          return assureData.currentAssessment || null;
-        });
         setLatestEvidence(assureData.latestEvidence || null);
         if (assureData.latestObservation) {
           setLatestObservation(assureData.latestObservation);
@@ -378,24 +373,23 @@ export function OperatorDashboard() {
       });
       const data = await res.json();
       if (data.success && data.result) {
+        lastScenarioTimeRef.current = Date.now();
         if (data.result.resultingState && data.result.resultingState !== "REJECTED") {
           const resultingState = data.result.resultingState as AssuranceState;
           setAssuranceStatus(resultingState);
-          if (resultingState === "VERIFIED_RESTORED") {
-            setLatestAssessment((prev) => ({
-              ...(prev || {
-                entranceId: selectedEntrance.id,
-                policyVersion: "1.0.0",
-                evidenceIds: [],
-                observationIds: [],
-              }),
-              id: `assess_restored_${Date.now()}`,
-              state: "VERIFIED_RESTORED",
-              reasonCode: "VERIFIED_RESTORED",
-              reason: data.result.explanation || "All 9 verification conditions passed.",
-              assessedAt: new Date().toISOString(),
-            }));
-          }
+          setLatestAssessment((prev) => ({
+            ...(prev || {
+              entranceId: selectedEntrance.id,
+              policyVersion: "1.0.0",
+              evidenceIds: [],
+              observationIds: [],
+            }),
+            id: `assess_${resultingState.toLowerCase()}_${Date.now()}`,
+            state: resultingState,
+            reasonCode: resultingState,
+            reason: data.result.explanation || data.result.description,
+            assessedAt: new Date().toISOString(),
+          }));
         }
         setFeedback(
           `${data.result.description} → Resulting State: ${data.result.resultingState}`
@@ -427,8 +421,19 @@ export function OperatorDashboard() {
       });
       const data = await res.json();
       if (data.success) {
+        lastScenarioTimeRef.current = Date.now();
         setAssuranceStatus("AVAILABLE");
-        setLatestAssessment(null);
+        setLatestAssessment({
+          id: `assess_reset_${Date.now()}`,
+          entranceId: selectedEntrance.id,
+          state: "AVAILABLE",
+          reasonCode: "INITIAL_BASELINE",
+          reason: "Demo baseline cleanly restored: Entrance state reset to AVAILABLE.",
+          evidenceIds: [],
+          observationIds: [],
+          policyVersion: "1.0.0",
+          assessedAt: new Date().toISOString(),
+        });
         setFeedback("Demo baseline cleanly restored: Entrance state reset to AVAILABLE.");
         await loadAssuranceData(selectedEntrance.id);
         if (selectedEntrance.cameraBinding?.deviceId) {
