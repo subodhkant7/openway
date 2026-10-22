@@ -97,7 +97,7 @@ export function HeroSection() {
                 <span className="h-2.5 w-2.5 rounded-full bg-amber-500/70" />
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-500/70" />
                 <span className="ml-2 font-mono text-[11px] text-ow-paper">
-                  OpenWay Interactive Operator Console
+                  OpenWay Single-Screen Assurance Workbench
                 </span>
               </div>
               <div className="hidden sm:flex items-center gap-2 font-mono text-[10px]">
@@ -110,7 +110,7 @@ export function HeroSection() {
             <div className="relative overflow-hidden rounded-xl bg-ow-ink mt-2">
               <Image
                 src="/presentation/console_overview.png"
-                alt="OpenWay Operator Dashboard interface showing Selected Entrance Assurance, active remediation controls, and deterministic scenario runner"
+                alt="OpenWay Single-Screen Assurance Workbench interface showing camera evidence provenance, assurance state invariants, and operator action demo journey"
                 width={1280}
                 height={780}
                 priority

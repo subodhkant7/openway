@@ -26,7 +26,7 @@ Businesses already deploy Ring cameras and doorbells at front doors, service ram
 
 | Stage 2 Criterion | Weight | OpenWay Phase 8 Implementation |
 | :--- | :---: | :--- |
-| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 10-check restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, and 235 automated tests across 30 test suites. |
+| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 10-check restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, and 299 automated tests across 36 test suites (verified October 2026). |
 | **Design** | 25% | WCAG 2.2 AA accessible operator interface, high-contrast dark theme, semantic landmarks, visual assurance cards, and an append-only chronological evidence timeline. |
 | **Potential Impact** | 25% | Solves the daily barrier of blocked ramps and inaccessible doorways for millions of people with mobility disabilities, enabling businesses to maintain physical accessibility and avoid visitor frustration. |
 | **Quality of Idea** | 25% | Novel non-security application of Ring: moving from basic passive motion alerts to an active assurance system where "reported fixed" never equals "verified fixed" without fresh physical proof. |
@@ -163,7 +163,7 @@ In evaluating the optional **Open Source mini-challenge**, we reviewed the offic
 | **1** | **Ring genuinely used in code** | Server-side `RingClient`, `RingPlaygroundProvider`, `RingApiProvider`, and `RingWebhookHandler` interfacing with official Amazon Ring Partner API endpoints. | **PASSED** |
 | **2** | **Real runtime integration path** | Server-to-server HTTP client issues live requests to `https://api.amazonvision.com` with OAuth Bearer tokens, correlation IDs, and HMAC-SHA256 signature verification. | **PASSED** |
 | **3** | **Demo shows simulator or actual device** | Complete deterministic local simulator (`RingSimulatorProvider`) and Developer Playground provider supporting live Ring devices. | **PASSED** |
-| **4** | **No fake README-only integration** | 235 automated tests verifying live endpoint calls, token validation, rate limit handling, HMAC signature verification, state machine transitions, and gatekeeper invariants. | **PASSED** |
+| **4** | **No fake README-only integration** | 299 automated tests verifying live endpoint calls, token validation, rate limit handling, HMAC signature verification, state machine transitions, and gatekeeper invariants. | **PASSED** |
 | **5** | **Server-side only API calls & credentials** | Ring and AWS credentials exist strictly in server-side Next.js route handlers; zero browser leakage verified via bundle audits. | **PASSED** |
 | **6** | **Locally testable** | Deterministic mock provider runs seamlessly with `npm run dev` and `npm run test` without requiring live Ring credentials. | **PASSED** |
 | **7** | **Clear setup & run instructions** | Documented step-by-step in `README.md`, `JUDGE.md`, `DEMO.md`, and `docs/deployment.md`. | **PASSED** |
@@ -190,7 +190,7 @@ OpenWay is built on an unwavering privacy principle:
 
 ## 8. Final Engineering & Quality Metrics
 
-- **235 Automated Tests across 30 Suites**: 100% green test suite covering temporal semantics, DynamoDB single-table schema, optimistic concurrency, deployed demo contract, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation.
+- **299 Automated Tests across 36 Suites**: 100% green test suite covering temporal semantics, DynamoDB single-table schema, optimistic concurrency, deployed demo contract, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation (verified October 2026).
 - **Strict TypeScript**: 100% typechecked with strict null checks (`npm run typecheck` exits with 0).
 - **ESLint & Web Vitals**: Zero lint errors or warnings (`npm run lint` exits with 0).
 - **Production Build**: Next.js App Router optimized static and dynamic bundle compilation (`npm run build` exits with 0).

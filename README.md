@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Track: Ring](https://img.shields.io/badge/Hackathon_Track-Ring-0284c7.svg)](https://developer.ring.com)
 [![Mini-Challenge: AWS Builder](https://img.shields.io/badge/Mini--Challenge-AWS_Builder-ff9900.svg)](https://aws.amazon.com)
-[![Tests: 235 passed](https://img.shields.io/badge/Tests-235_passed-success.svg)](src/test)
+[![Tests: 299 passed](https://img.shields.io/badge/Tests-299_passed-success.svg)](src/test)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Strict-3178c6.svg)](tsconfig.json)
 
 ---
@@ -202,7 +202,7 @@ cd OpenWay
 # 2. Install dependencies
 npm ci
 
-# 3. Run full automated test suite (235 tests across 30 suites)
+# 3. Run full automated test suite (299 tests across 36 suites)
 npm run test
 
 # 4. Verify TypeScript strict typecheck
@@ -257,7 +257,7 @@ The OpenWay test suite enforces all core invariants through unit, integration, c
 
 | Metric | Status | Details |
 | :--- | :---: | :--- |
-| **Automated Tests** | **235 PASS** | 235 passed tests across 30 test suites (`npm run test`). |
+| **Automated Tests** | **299 PASS** | 299 passed tests across 36 test suites (verified October 2026, `npm run test`). |
 | **TypeScript** | **PASS** | Strict mode, zero `any` evasions, clean compilation (`tsc --noEmit`). |
 | **Linting** | **PASS** | Zero ESLint warnings or errors (`next lint`). |
 | **Production Build** | **PASS** | Optimized Next.js App Router standalone compilation (`next build`). |

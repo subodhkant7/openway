@@ -129,9 +129,9 @@ export function ArchitectureSection() {
         {/* Verification Architecture Summary Metric Cards */}
         <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="rounded-xl border border-ow-line bg-ow-panel p-4 text-center">
-            <span className="font-mono text-2xl font-bold text-ow-mint">249</span>
+            <span className="font-mono text-2xl font-bold text-ow-mint">299</span>
             <p className="mt-1 text-xs text-ow-muted">Passing Automated Tests</p>
-            <span className="font-mono text-[10px] text-ow-subtle">Across 31 test suites</span>
+            <span className="font-mono text-[10px] text-ow-subtle">Across 36 test suites (verified October 2026)</span>
           </div>
           <div className="rounded-xl border border-ow-line bg-ow-panel p-4 text-center">
             <span className="font-mono text-2xl font-bold text-ow-mint">9/9</span>

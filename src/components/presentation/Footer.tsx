@@ -57,7 +57,7 @@ export function Footer() {
               Deterministic Foundation
             </span>
             <p>
-              249 passing automated unit, adversarial, and invariant verification tests. Ephemeral in-memory image buffers with zero S3 persistence.
+              299 passing automated unit, adversarial, and invariant verification tests across 36 test suites (verified October 2026). Ephemeral in-memory image buffers with zero S3 persistence.
             </p>
           </div>
 

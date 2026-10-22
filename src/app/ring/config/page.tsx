@@ -7,7 +7,6 @@ import {
   Server,
   Zap,
   CheckCircle2,
-  XCircle,
   HelpCircle,
   AlertTriangle,
   RefreshCw,
@@ -53,11 +52,19 @@ export default function RingConfigPage() {
       const linkData = await linkRes.json();
       setLinkRecord(linkData);
 
-      // 3. Fetch Discovered Devices
-      const devRes = await fetch("/api/ring/devices");
-      const devData = await devRes.json();
-      if (devData.success && Array.isArray(devData.devices)) {
-        setDevices(devData.devices);
+      // 3. Fetch Discovered Devices ONLY if account link is genuinely established
+      const isAccountLinked = Boolean(linkData?.linked && linkData?.status === "LINKED");
+      if (isAccountLinked && statusData.status?.mode === "api") {
+        const devRes = await fetch("/api/ring/devices");
+        const devData = await devRes.json();
+        if (devData.success && Array.isArray(devData.devices)) {
+          setDevices(devData.devices);
+        } else {
+          setDevices([]);
+        }
+      } else {
+        // Not linked or in simulator: no live authorized Ring devices discovered
+        setDevices([]);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load Ring configuration");
@@ -107,9 +114,12 @@ export default function RingConfigPage() {
     }
   };
 
+  // Authoritative State Evaluation
+  const isLinked = Boolean(linkRecord?.linked && linkRecord?.status === "LINKED");
+  const isRelinkRequired = linkRecord?.status === "ACCOUNT_RELINK_REQUIRED";
   const isLiveMode = status?.mode === "api";
-  const isSimulator = status?.mode === "simulator";
-  const isLinked = linkRecord?.linked || linkRecord?.status === "LINKED";
+  const isSimulator = status?.mode === "simulator" || (!status?.mode && !loading);
+  const hasIntegrationError = Boolean(status?.state === "ERROR" || (status?.error && isLiveMode));
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between">
@@ -120,7 +130,7 @@ export default function RingConfigPage() {
             OW
           </div>
           <span className="font-bold tracking-tight text-white text-base">OpenWay</span>
-          <span className="text-xs text-slate-500 font-mono">/ Ring Management & Configuration</span>
+          <span className="text-xs text-slate-500 font-mono">/ Ring Management &amp; Configuration</span>
         </div>
         <div className="flex items-center gap-4 text-xs">
           <Link
@@ -150,7 +160,7 @@ export default function RingConfigPage() {
               Ring Partner Integration
             </h1>
             <p className="mt-1 text-xs text-slate-400">
-              One-Way (Ring-Driven) Account Association & Device Discovery
+              One-Way (Ring-Driven) Account Association &amp; Device Discovery
             </p>
           </div>
 
@@ -188,6 +198,24 @@ export default function RingConfigPage() {
           </div>
         )}
 
+        {/* Prominent Not-Linked Demo Notice Banner */}
+        {!isLinked && (
+          <div
+            id="not-linked-banner"
+            className="rounded-xl border border-sky-500/30 bg-sky-950/40 p-4 text-xs text-sky-200 flex items-start gap-3 shadow-lg"
+          >
+            <ShieldCheck className="h-5 w-5 text-sky-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-white text-sm">
+                Ring account not connected. The public demo is using the deterministic simulator.
+              </p>
+              <p className="text-slate-300 leading-relaxed">
+                In this public evaluation deployment, no real camera is connected. The operator console operates using deterministic mock hardware events and ramp images so judges can safely test all verification phases.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Status Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Card 1: Operating Mode */}
@@ -202,15 +230,20 @@ export default function RingConfigPage() {
                     <Zap className="h-4 w-4 text-amber-400" />
                     <span>Deterministic Simulator</span>
                   </>
-                ) : isLiveMode ? (
+                ) : isLiveMode && isLinked ? (
                   <>
                     <Server className="h-4 w-4 text-emerald-400" />
                     <span>Official Ring Partner API</span>
                   </>
+                ) : isLiveMode && !isLinked ? (
+                  <>
+                    <Radio className="h-4 w-4 text-sky-400" />
+                    <span>Ring Partner API (Not Linked)</span>
+                  </>
                 ) : (
                   <>
                     <Radio className="h-4 w-4 text-sky-400" />
-                    <span>{status?.mode || "Unknown"}</span>
+                    <span>{status?.mode || "Simulator"}</span>
                   </>
                 )}
               </span>
@@ -218,18 +251,30 @@ export default function RingConfigPage() {
                 className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
                   isSimulator
                     ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                    : isLiveMode
+                    : isLiveMode && isLinked
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+                    : isLiveMode && !isLinked
+                    ? "bg-slate-800 border-slate-700 text-slate-300"
                     : "bg-slate-800 border-slate-700 text-slate-400"
                 }`}
               >
-                {isSimulator ? "SIMULATOR" : "LIVE RING"}
+                {isSimulator
+                  ? "SIMULATOR"
+                  : isLiveMode && isLinked
+                  ? "LIVE RING"
+                  : isLiveMode && !isLinked
+                  ? "NOT_LINKED"
+                  : "SIMULATOR"}
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-400">
               {isSimulator
                 ? "Autonomous safety gates operate using deterministic mock telemetry."
-                : "Live video and motion events ingested directly from Amazon Vision API."}
+                : isLiveMode && isLinked
+                ? "Live video and motion events ingested directly from Amazon Vision API."
+                : isLiveMode && !isLinked
+                ? "Ring API credentials configured. Account authorization required before live telemetry can ingest."
+                : "Deterministic simulation active."}
             </p>
           </div>
 
@@ -242,7 +287,7 @@ export default function RingConfigPage() {
               <span className="text-base font-bold text-white flex items-center gap-2">
                 {isLinked ? (
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                ) : linkRecord?.status === "ACCOUNT_RELINK_REQUIRED" ? (
+                ) : isRelinkRequired ? (
                   <AlertTriangle className="h-4 w-4 text-amber-400" />
                 ) : (
                   <HelpCircle className="h-4 w-4 text-slate-500" />
@@ -250,7 +295,7 @@ export default function RingConfigPage() {
                 <span>
                   {isLinked
                     ? "Linked & Authorized"
-                    : linkRecord?.status === "ACCOUNT_RELINK_REQUIRED"
+                    : isRelinkRequired
                     ? "Re-link Required"
                     : "Not Connected"}
                 </span>
@@ -259,16 +304,16 @@ export default function RingConfigPage() {
                 className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
                   isLinked
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-                    : linkRecord?.status === "ACCOUNT_RELINK_REQUIRED"
+                    : isRelinkRequired
                     ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
                     : "bg-slate-800 border-slate-700 text-slate-400"
                 }`}
               >
-                {linkRecord?.status || "NOT_LINKED"}
+                {isLinked ? "LINKED" : linkRecord?.status || "NOT_LINKED"}
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-400 font-mono truncate" title={linkRecord?.ringAccountReference}>
-              {linkRecord?.ringAccountReference
+              {isLinked && linkRecord?.ringAccountReference
                 ? `Account: ${linkRecord.ringAccountReference}`
                 : "No Ring user account currently associated."}
             </p>
@@ -282,41 +327,60 @@ export default function RingConfigPage() {
             <div className="mt-3 flex items-center justify-between">
               <span className="text-base font-bold text-white flex items-center gap-2">
                 <Camera className="h-4 w-4 text-sky-400" />
-                <span>{devices.length} Devices Discovered</span>
+                <span>{isLinked ? `${devices.length} Devices Discovered` : "0 Devices Discovered"}</span>
               </span>
               <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
-                {devices.filter((d) => d.online).length} online
+                {isLinked ? `${devices.filter((d) => d.online).length} online` : "NOT LINKED"}
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-400">
-              Hardware discovered through <code className="font-mono text-slate-300">GET /v1/devices</code>.
+              {isLinked
+                ? "Hardware discovered through GET /v1/devices."
+                : "No authorized Ring devices discovered"}
             </p>
           </div>
         </div>
 
-        {/* Linking Instructions & Actions */}
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl space-y-4">
+        {/* Concise "Connect a Ring test account" Instruction Panel */}
+        <section
+          id="connect-ring-test-account-panel"
+          className="rounded-2xl border border-slate-800 bg-slate-900/80 p-6 shadow-xl space-y-5"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
             <div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-sky-400">
+                Ring-Driven Authorization Flow
+              </span>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Lock className="h-4 w-4 text-sky-400" />
-                One-Way (Ring-Driven) Account Linking Workflow
+                Connect a Ring test account
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Connecting an official Ring account to this OpenWay deployment
+              <p className="text-xs text-slate-400 mt-1">
+                One-Way (Ring-Driven) linking begins in the Ring Developer Portal or Ring AppStore. It is not an ordinary OAuth login initiated by an OpenWay console button.
               </p>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href="https://developer.amazon.com/docs/ring/develop.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-500/20 transition"
+                id="ring-api-guide-link"
+              >
+                <span>Official Ring API Development Guide</span>
+                <ExternalLink className="h-3.5 w-3.5 text-sky-400" />
+              </a>
+
               <a
                 href="https://account.ring.com/account/integrations"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-500/40 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-500/20 transition"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition"
                 id="manage-ring-connection-btn"
               >
-                <span>Manage Ring Connection</span>
-                <ExternalLink className="h-3.5 w-3.5 text-sky-400" />
+                <span>Ring Account Integrations</span>
+                <ExternalLink className="h-3.5 w-3.5 text-slate-400" />
               </a>
 
               {isLinked && (
@@ -334,51 +398,125 @@ export default function RingConfigPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
-            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800">
-              <span className="text-sky-400 font-bold block mb-1">Step 1 · Ring AppStore</span>
-              <p className="text-slate-400">
-                User selects OpenWay in Ring AppStore, reviews permissions, and selects shared devices.
-              </p>
+          {/* 6 Concise Steps */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
+            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-sky-400 uppercase font-bold tracking-wider block mb-1">
+                  Step 1
+                </span>
+                <p className="font-semibold text-slate-200 mb-1">Open Developer Portal</p>
+                <p className="text-slate-400 leading-relaxed">
+                  Open the registered OpenWay app in the Ring Developer Portal.
+                </p>
+              </div>
             </div>
-            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800">
-              <span className="text-sky-400 font-bold block mb-1">Step 2 · Token Exchange</span>
-              <p className="text-slate-400">
-                Ring POSTs auth code to <code className="text-slate-300">/api/ring/oauth/exchange</code>; exchanged for encrypted tokens.
-              </p>
+
+            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-sky-400 uppercase font-bold tracking-wider block mb-1">
+                  Step 2
+                </span>
+                <p className="font-semibold text-slate-200 mb-1">Navigate to Test (Phase 3)</p>
+                <p className="text-slate-400 leading-relaxed">
+                  Navigate to Test (Phase 3) and start the Ring authorization workflow.
+                </p>
+              </div>
             </div>
-            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800">
-              <span className="text-sky-400 font-bold block mb-1">Step 3 · Nonce Verification</span>
-              <p className="text-slate-400">
-                User is redirected to <code className="text-slate-300">/ring/link</code> with HMAC-SHA256 nonce to verify ownership.
-              </p>
+
+            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-sky-400 uppercase font-bold tracking-wider block mb-1">
+                  Step 3
+                </span>
+                <p className="font-semibold text-slate-200 mb-1">Sign In &amp; Authorize Scope</p>
+                <p className="text-slate-400 leading-relaxed">
+                  Sign in and authorize the requested Ring account/device access.
+                </p>
+              </div>
             </div>
-            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800">
-              <span className="text-sky-400 font-bold block mb-1">Step 4 · Confirmation</span>
-              <p className="text-slate-400">
-                Backend completes Ring App-Integrations with POST + PATCH (<code className="text-slate-300">completed</code>).
-              </p>
+
+            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-sky-400 uppercase font-bold tracking-wider block mb-1">
+                  Step 4
+                </span>
+                <p className="font-semibold text-slate-200 mb-1">Token Exchange</p>
+                <p className="text-slate-400 leading-relaxed">
+                  Allow Ring to send its authorization code to OpenWay (<code className="text-slate-300 font-mono">/api/ring/oauth/exchange</code>).
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-sky-400 uppercase font-bold tracking-wider block mb-1">
+                  Step 5
+                </span>
+                <p className="font-semibold text-slate-200 mb-1">Nonce Verification</p>
+                <p className="text-slate-400 leading-relaxed">
+                  Wait for nonce verification (<code className="text-slate-300 font-mono">/ring/link</code>) and account-link completion.
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-xl bg-slate-950 p-3.5 border border-slate-800 flex flex-col justify-between">
+              <div>
+                <span className="font-mono text-[10px] text-sky-400 uppercase font-bold tracking-wider block mb-1">
+                  Step 6
+                </span>
+                <p className="font-semibold text-slate-200 mb-1">Return &amp; Refresh</p>
+                <p className="text-slate-400 leading-relaxed">
+                  Return to OpenWay and refresh connection status and device discovery.
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* One-Way Architecture & Revocation Policy Notice */}
-          <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-3.5 text-xs text-slate-300 space-y-1">
+          {/* Action Distinction Notice */}
+          <div className="rounded-xl bg-slate-950/70 border border-slate-800 p-4 text-xs space-y-3">
             <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <Lock className="h-3.5 w-3.5 text-sky-400" />
-              <span>One-Way Linking Architecture & Revocation Policy</span>
+              <ShieldCheck className="h-4 w-4 text-sky-400" />
+              <span>Distinct Operational Actions</span>
             </div>
-            <p className="text-slate-400 leading-relaxed">
-              OpenWay uses official One-Way (Ring-Driven) account linking. Ring’s API does not support upstream unlinking from partner applications. To completely revoke OpenWay’s authorization and halt token issuance, remove OpenWay directly from your{" "}
-              <a
-                href="https://account.ring.com/account/integrations"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sky-400 hover:underline inline-flex items-center gap-0.5"
-              >
-                Ring Account Integrations <ExternalLink className="h-2.5 w-2.5" />
-              </a>
-              . Purging local credentials in OpenWay deletes locally stored tokens so subsequent requests cannot reuse them, but does not revoke remote Ring authorization.
-            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-slate-300">
+              <div className="rounded-lg bg-slate-900/60 p-3 border border-slate-800">
+                <strong className="text-sky-300 block mb-1">1. Start Ring Account Linking</strong>
+                <p className="text-slate-400 leading-relaxed">
+                  Performed through Ring&apos;s authorized Test/AppStore flow in the Ring Developer Portal. OpenWay itself cannot initiate this One-Way flow.
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-900/60 p-3 border border-slate-800">
+                <strong className="text-amber-300 block mb-1">2. Manage / Revoke Authorization</strong>
+                <p className="text-slate-400 leading-relaxed">
+                  Performed through{" "}
+                  <a
+                    href="https://account.ring.com/account/integrations"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-400 underline inline-flex items-center gap-0.5"
+                  >
+                    Ring Account Integrations <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                  . This halts remote token issuance and revokes partner access Ring-side.
+                </p>
+              </div>
+              <div className="rounded-lg bg-slate-900/60 p-3 border border-slate-800">
+                <strong className="text-rose-300 block mb-1">3. Delete Local OpenWay Credentials</strong>
+                <p className="text-slate-400 leading-relaxed">
+                  Removes stored tokens in OpenWay persistence so subsequent requests cannot reuse them, but does not itself revoke upstream Ring-side authorization.
+                </p>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400">
+              <strong className="text-slate-300">Public Demo Invariant: </strong>
+              In the disconnected public demo, no real camera is connected. The deterministic simulator remains fully usable for judges in the{" "}
+              <Link href="/console" className="text-sky-400 hover:underline">
+                Operator Console
+              </Link>
+              .
+            </div>
           </div>
         </section>
 
@@ -400,8 +538,12 @@ export default function RingConfigPage() {
           </div>
 
           {devices.length === 0 ? (
-            <div className="text-center py-8 text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800/60">
-              No devices currently discovered. Ensure a Ring account is linked and camera devices are authorized.
+            <div className="text-center py-8 text-xs text-slate-400 bg-slate-950 rounded-xl border border-slate-800/60 space-y-1.5 p-6">
+              <Camera className="h-6 w-6 text-slate-600 mx-auto mb-2" />
+              <p className="font-semibold text-slate-300">No authorized Ring devices discovered</p>
+              <p className="text-slate-500 max-w-md mx-auto">
+                No real camera is connected in this public demo environment. Ensure a Ring test account is linked and camera devices are authorized via the Ring Developer Portal. The deterministic simulator remains usable for judges in the Operator Console.
+              </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -467,7 +609,7 @@ export default function RingConfigPage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-4 text-center text-xs text-slate-600">
-        OpenWay Autonomous Accessibility Assurance · Official Amazon Ring Partner Integration
+        OpenWay Autonomous Accessibility Assurance &middot; Official Amazon Ring Partner Integration
       </footer>
     </div>
   );

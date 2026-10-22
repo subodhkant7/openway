@@ -35,6 +35,6 @@ Traditional camera alert systems push notifications and trust staff checkboxes. 
 
 ## Provenance Transparency
 
-* **`SIMULATED RING`**: Used in the public demo sandbox to provide a deterministic, zero-friction evaluator experience without requiring judge Ring hardware pairing.
-* **`AMAZON BEDROCK`**: Real foundation model inference (`amazon.nova-lite-v1:0` via Converse API) interpreting image evidence.
+* **`SIMULATOR (Deterministic)`**: The public demo defaults to the deterministic simulator (`OPENWAY_PROVIDER=simulator`) to provide a frictionless evaluator experience without requiring judge Ring hardware pairing. Official One-Way Partner API account-linking is implemented.
+* **`VISION ANALYZER`**: Amazon Bedrock architecture implemented using `amazon.nova-lite-v1:0` via Converse API; in the public evaluation environment where Bedrock model access is unconfigured on the AWS account, OpenWay operates in simulated vision fallback and safely fails closed to `UNKNOWN` upon model denial.
 * **`SPEC VERIFIED`**: Real Ring Partner API v1.1 integration architecture (`RingClient`, JSON:API `/v1/devices`, 303 media downloads, HMAC webhooks) verified against official specifications.

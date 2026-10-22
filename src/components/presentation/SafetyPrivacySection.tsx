@@ -108,7 +108,7 @@ export function SafetyPrivacySection() {
                 Runtime Verification Matrix
               </span>
               <span className="rounded bg-ow-raised px-2 py-0.5 font-mono text-[10px] text-ow-muted">
-                Verified: 2026-10-12
+                Verified: {PLATFORM_STATUS.simulatorWorkflow.checkedAt}
               </span>
             </div>
             <h3 className="text-lg font-bold text-ow-paper mt-1">

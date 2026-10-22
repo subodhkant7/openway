@@ -36,29 +36,29 @@ export const PLATFORM_STATUS = {
   simulatorWorkflow: {
     label: "Simulator-backed assurance workflow",
     status: "OPERATIONAL",
-    checkedAt: "2026-10-12",
+    checkedAt: "2026-10-22",
     detail:
       "Deployed console runs the full detect → remediate → recheck → verify workflow using simulated Ring events and simulated vision observations.",
   },
   persistence: {
     label: "Amazon DynamoDB workflow state",
     status: "OPERATIONAL",
-    checkedAt: "2026-10-12",
+    checkedAt: "2026-10-22",
     detail: "Production /api/health reports storage provider dynamo, status CONNECTED.",
   },
   liveVisionInference: {
     label: "Live Amazon Bedrock vision inference",
     status: "UNAVAILABLE",
-    checkedAt: "2026-10-12",
+    checkedAt: "2026-10-22",
     detail:
-      "A real image request through the deployed /api/vision/analyze path (amazon.nova-lite-v1:0, us-east-1) returned “Error 002: Access to Bedrock models is not allowed for this account”. OpenWay failed closed to UNKNOWN.",
+      "A real image request through the deployed /api/vision/analyze path (amazon.nova-lite-v1:0, us-east-1) returned “Error 002: Access to Bedrock models is not allowed for this account”. OpenWay failed closed to UNKNOWN, using simulated vision in demo.",
   },
   liveRing: {
     label: "Live Ring Partner API",
     status: "UNCONFIRMED",
-    checkedAt: "2026-10-12",
+    checkedAt: "2026-10-22",
     detail:
-      "Integration code is implemented; the deployed environment runs the Ring simulator (health reports SIMULATOR_ACTIVE).",
+      "Integration code is implemented; the deployed environment runs the Ring simulator by default (health reports SIMULATOR_ACTIVE) until a genuine Ring account link and device discovery succeed.",
   },
 } as const satisfies Record<string, ComponentStatus>;
 

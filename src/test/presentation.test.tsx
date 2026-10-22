@@ -63,6 +63,26 @@ describe("OpenWay Product Presentation Homepage (/)", () => {
     expect(githubLinks.length).toBeGreaterThan(0);
     expect(githubLinks[0].getAttribute("href")).toBe("https://github.com/subodhkant7/openway");
   });
+
+  it("renders all five single-screen assurance workbench walkthrough tabs, accurate test metrics, and simulated provenance", () => {
+    render(<HomePage />);
+    // All 5 workbench stages
+    expect(screen.getByText("1. Baseline Assurance")).toBeDefined();
+    expect(screen.getByText("2. Interruption Detected")).toBeDefined();
+    expect(screen.getByText("3. Staff Remediation & Lock")).toBeDefined();
+    expect(screen.getByText("4. Canonical Verification")).toBeDefined();
+    expect(screen.getByText("5. Fail-Closed Failsafe")).toBeDefined();
+
+    // Verified test suite metrics (299 tests across 36 suites)
+    expect(screen.getByText("299")).toBeDefined();
+    expect(screen.getByText("Across 36 test suites (verified October 2026)")).toBeDefined();
+
+    // Verification date
+    expect(screen.getByText(`Verified: ${PLATFORM_STATUS.simulatorWorkflow.checkedAt}`)).toBeDefined();
+
+    // Simulated local provenance indicator
+    expect(screen.getByText(/PROVENANCE: SIMULATED_LOCAL/i)).toBeDefined();
+  });
 });
 
 describe("OpenWay Presentation Redirect (/presentation)", () => {

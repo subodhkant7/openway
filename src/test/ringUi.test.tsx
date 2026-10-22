@@ -94,7 +94,7 @@ describe("Ring Integration UI Routes", () => {
   });
 
   describe("Ring Config Route (/ring/config)", () => {
-    it("renders Ring connection status, provider mode, and discovered devices", async () => {
+    it("renders unlinked simulator state with prominent demo notice, 6-step guide, and zero discovered devices", async () => {
       global.fetch = vi.fn(async (url: string | URL | Request) => {
         const urlStr = url.toString();
         if (urlStr.includes("/api/ring/status")) {
@@ -103,10 +103,90 @@ describe("Ring Integration UI Routes", () => {
               success: true,
               status: {
                 mode: "simulator",
+                state: "SIMULATED",
+                isConfigured: true,
+                baseUrl: "http://localhost:3000/simulator",
+                details: "Deterministic simulator provider active",
+                activeDeviceCount: 0,
+              },
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (urlStr.includes("/api/ring/oauth/link")) {
+          return new Response(
+            JSON.stringify({
+              linked: false,
+              status: "NOT_LINKED",
+              venueId: "venue_maple_cafe",
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (urlStr.includes("/api/ring/devices")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              devices: [],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } }
+          );
+        }
+        return new Response("Not Found", { status: 404 });
+      }) as unknown as typeof fetch;
+
+      render(<RingConfigPage />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Ring Partner Integration")).toBeInTheDocument();
+      });
+
+      // Prominent banner for not connected demo
+      expect(
+        screen.getByText("Ring account not connected. The public demo is using the deterministic simulator.")
+      ).toBeInTheDocument();
+
+      // Truthful cards
+      expect(screen.getByText("Deterministic Simulator")).toBeInTheDocument();
+      expect(screen.getByText("Not Connected")).toBeInTheDocument();
+      expect(screen.getByText("0 Devices Discovered")).toBeInTheDocument();
+      expect(screen.getAllByText("No authorized Ring devices discovered").length).toBeGreaterThan(0);
+
+      // Connect Ring test account panel and 6 steps
+      expect(screen.getByText("Connect a Ring test account")).toBeInTheDocument();
+      expect(screen.getByText("Step 1")).toBeInTheDocument();
+      expect(screen.getByText("Step 2")).toBeInTheDocument();
+      expect(screen.getByText("Step 3")).toBeInTheDocument();
+      expect(screen.getByText("Step 4")).toBeInTheDocument();
+      expect(screen.getByText("Step 5")).toBeInTheDocument();
+      expect(screen.getByText("Step 6")).toBeInTheDocument();
+
+      // Official documentation link
+      const docLink = screen.getByRole("link", { name: /Official Ring API Development Guide/i });
+      expect(docLink.getAttribute("href")).toBe("https://developer.amazon.com/docs/ring/develop.html");
+
+      // Action distinction
+      expect(screen.getByText("1. Start Ring Account Linking")).toBeInTheDocument();
+      expect(screen.getByText("2. Manage / Revoke Authorization")).toBeInTheDocument();
+      expect(screen.getByText("3. Delete Local OpenWay Credentials")).toBeInTheDocument();
+
+      // Unlinked user should not see Delete Local Credentials button
+      expect(screen.queryByText("Delete Local Credentials")).toBeNull();
+    });
+
+    it("renders linked live state when account linking is established", async () => {
+      global.fetch = vi.fn(async (url: string | URL | Request) => {
+        const urlStr = url.toString();
+        if (urlStr.includes("/api/ring/status")) {
+          return new Response(
+            JSON.stringify({
+              success: true,
+              status: {
+                mode: "api",
                 state: "CONNECTED",
                 isConfigured: true,
                 baseUrl: "https://api.amazonvision.com",
-                details: "Deterministic simulator provider active",
+                details: "Connected to official Ring Partner API",
                 activeDeviceCount: 1,
               },
             }),
@@ -157,11 +237,12 @@ describe("Ring Integration UI Routes", () => {
         expect(screen.getByText("Ring Partner Integration")).toBeInTheDocument();
       });
 
-      expect(screen.getByText("Deterministic Simulator")).toBeInTheDocument();
+      expect(screen.getByText("Official Ring Partner API")).toBeInTheDocument();
       expect(screen.getByText("Linked & Authorized")).toBeInTheDocument();
       expect(screen.getByText(/ava1.ring.account.test_venue_cafe/)).toBeInTheDocument();
+      expect(screen.getByText("1 Devices Discovered")).toBeInTheDocument();
+      expect(screen.getByText("Front Ramp Camera")).toBeInTheDocument();
       expect(screen.getByText("Delete Local Credentials")).toBeInTheDocument();
-      expect(screen.getByText("Manage Ring Connection")).toBeInTheDocument();
     });
   });
 });

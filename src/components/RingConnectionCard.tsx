@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { RingProviderStatus } from "@/ring/types";
 import {
   CheckCircle2,
@@ -8,6 +9,7 @@ import {
   RefreshCw,
   Server,
   Zap,
+  ExternalLink,
 } from "lucide-react";
 
 interface RingConnectionCardProps {
@@ -26,39 +28,40 @@ export function RingConnectionCard({
   activeMode,
 }: RingConnectionCardProps) {
   const state = status?.state ?? "NOT_CONFIGURED";
+  const isLiveConnected = (status?.mode === "api" || status?.mode === "playground") && state === "CONNECTED";
+  const isSimulatorActive = status?.mode === "simulator" || state === "SIMULATED";
 
   const getStatusBadge = () => {
-    switch (state) {
-      case "CONNECTED":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/30">
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            CONNECTED (REAL RING)
-          </span>
-        );
-      case "SIMULATED":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 border border-amber-500/40">
-            <Zap className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
-            SIMULATED
-          </span>
-        );
-      case "ERROR":
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-400 border border-rose-500/30">
-            <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-            ERROR
-          </span>
-        );
-      case "NOT_CONFIGURED":
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-700/40 px-3 py-1 text-xs font-semibold text-slate-300 border border-slate-600/50">
-            <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-            NOT CONFIGURED
-          </span>
-        );
+    if (isLiveConnected) {
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-400 border border-emerald-500/30">
+          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+          CONNECTED (REAL RING)
+        </span>
+      );
     }
+    if (isSimulatorActive) {
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-xs font-semibold text-amber-300 border border-amber-500/40">
+          <Zap className="h-3.5 w-3.5 text-amber-400" aria-hidden="true" />
+          SIMULATED
+        </span>
+      );
+    }
+    if (state === "ERROR") {
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-400 border border-rose-500/30">
+          <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          ERROR
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-700/40 px-3 py-1 text-xs font-semibold text-slate-300 border border-slate-600/50">
+        <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+        NOT CONFIGURED
+      </span>
+    );
   };
 
   return (
@@ -157,6 +160,17 @@ export function RingConnectionCard({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="mt-3 rounded-lg bg-slate-950/60 border border-slate-800 p-2.5 text-[11px] text-slate-400 flex items-center justify-between">
+        <span>Ring account not connected? See the One-Way linking guide.</span>
+        <Link
+          href="/ring/config"
+          className="text-sky-400 hover:underline inline-flex items-center gap-1 font-medium"
+        >
+          <span>Ring Config &amp; Guide</span>
+          <ExternalLink className="h-3 w-3" />
+        </Link>
       </div>
     </section>
   );
