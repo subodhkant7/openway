@@ -22,6 +22,13 @@ export const dynamic = "force-dynamic";
  * This prevents unauthorized anonymous consumption of Ring API tokens/quotas.
  */
 function isProductionWhepDisabled(): boolean {
+  if (process.env.FORCE_PRODUCTION_WHEP_DISABLED === "true") {
+    return true;
+  }
+  if (process.env.NODE_ENV === "test" || process.env.OPENWAY_ENV === "test") {
+    return false;
+  }
+
   const isProduction =
     process.env.NODE_ENV === "production" ||
     process.env.OPENWAY_ENV === "production" ||

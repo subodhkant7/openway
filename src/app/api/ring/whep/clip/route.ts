@@ -7,10 +7,13 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
   const isProduction =
-    process.env.NODE_ENV === "production" ||
-    process.env.OPENWAY_ENV === "production" ||
-    process.env.AWS_EXECUTION_ENV !== undefined ||
-    process.env.AMPLIFY_ENV !== undefined;
+    process.env.FORCE_PRODUCTION_WHEP_DISABLED === "true" ||
+    (process.env.NODE_ENV !== "test" &&
+      process.env.OPENWAY_ENV !== "test" &&
+      (process.env.NODE_ENV === "production" ||
+        process.env.OPENWAY_ENV === "production" ||
+        process.env.AWS_EXECUTION_ENV !== undefined ||
+        process.env.AMPLIFY_ENV !== undefined));
 
   if (isProduction) {
     return NextResponse.json(

@@ -157,7 +157,7 @@ describe("Ring WHEP Live Stream Controller (Phase R3)", () => {
 
   describe("Phase D Security Gate — Production Fail-Closed Isolation", () => {
     it("POST /api/ring/whep/session returns 403 PRODUCTION_WHEP_DISABLED in production", async () => {
-      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.FORCE_PRODUCTION_WHEP_DISABLED = "true";
       process.env.RING_PLAYGROUND_ACCESS_TOKEN = "valid_test_token";
 
       const req = new NextRequest("http://localhost:3000/api/ring/whep/session", {
@@ -173,7 +173,7 @@ describe("Ring WHEP Live Stream Controller (Phase R3)", () => {
     });
 
     it("DELETE /api/ring/whep/session returns 403 PRODUCTION_WHEP_DISABLED in production", async () => {
-      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.FORCE_PRODUCTION_WHEP_DISABLED = "true";
       process.env.RING_PLAYGROUND_ACCESS_TOKEN = "valid_test_token";
 
       const req = new NextRequest("http://localhost:3000/api/ring/whep/session", {
@@ -221,7 +221,7 @@ describe("Ring WHEP Live Stream Controller (Phase R3)", () => {
 
     it("POST /api/ring/whep/clip returns 403 PRODUCTION_CLIP_DISABLED in production", async () => {
       const { POST: POST_CLIP } = await import("@/app/api/ring/whep/clip/route");
-      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.FORCE_PRODUCTION_WHEP_DISABLED = "true";
 
       const req = new NextRequest("http://localhost:3000/api/ring/whep/clip", {
         method: "POST",
