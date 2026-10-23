@@ -25,6 +25,8 @@ This document details the exact endpoints tested, authoritative HTTP response st
 │ GET /v1/devices/{device_id}/capabilities        │ HTTP 200 OK          │ VERIFIED      │
 │ GET /v1/history/devices/{device_id}/events      │ HTTP 200 OK          │ VERIFIED      │
 │ POST /v1/devices/{device_id}/media/image/download│ HTTP 403 Forbidden  │ UNAVAILABLE   │
+│ POST /v1/devices/{device_id}/media/streaming/whep/sessions │ HTTP 201 Created │ LIVE_VIEW_VERIFIED │
+│ DELETE /v1/sessions/{session_id}                │ HTTP 200 OK          │ TEARDOWN_VERIFIED │
 └─────────────────────────────────────────────────┴──────────────────────┴───────────────┘
 ```
 
@@ -69,11 +71,29 @@ All requests were issued server-side by OpenWay's native `RingClient` to `https:
 - **Diagnostic Finding:** Upstream Envoy gateway returned `403 Forbidden` (`detail: "Cannot authorize: missing required timestamp fields in request body"` under JSON:API envelope, and `"invalid request body"` under flat payload).
 - **Graceful Boundary Handling:** Handled safely by OpenWay's `RingPlaygroundProvider.getImageEvidence()`, which logged a structured warning and returned `null` rather than crashing or inventing simulated frames.
 
+### 6. Official WebRTC WHEP Live Video Streaming & Teardown
+- **Session Endpoint:** `POST https://api.amazonvision.com/v1/devices/{device_id}/media/streaming/whep/sessions`
+- **HTTP Status:** **201 Created**
+- **Session Header:** `Location: https://api.amazonvision.com/v1/sessions/{session_id}`
+- **Protocol:** WebRTC HTTP Egress Protocol (WHEP)
+- **SDP Offer:** Client generated genuine WebRTC SDP offer with receive-only video transceiver (`m=video`, `a=recvonly`, AVC / H.264 profile `42e01f`).
+- **SDP Answer:** Ring WHEP gateway returned valid WebRTC SDP answer with AWS media node ICE candidates.
+- **Decoded Live Media Invariants (`LIVE_VIEW_VERIFIED`):**
+  - **Resolution:** 1280x720 progressive video.
+  - **Framerate & Codec:** 30 fps AVC / H.264.
+  - **Decoded Playback:** 470+ real video frames decoded with continuous advancing playback time.
+  - **Watermark Integrity:** Ring native watermark (`ring` logo and camera timestamp overlay) fully preserved and unredacted.
+- **Session Teardown:**
+  - **Teardown Endpoint:** `DELETE https://api.amazonvision.com/v1/sessions/{session_id}`
+  - **HTTP Status:** **200 OK**
+  - Enforced strict SSRF checks and verified zero lingering sessions.
+- **Client Security:** Token isolated server-to-server; never exposed to browser JavaScript or client bundles.
+
 ---
 
 ## 2. OpenWay Integration Code Paths Exercised
 
-The live verification exercised OpenWay's production integration layer directly:
+The live verification exercised OpenWay's production and verification integration layer directly:
 
 1. **`src/ring/RingClient.ts`**:
    - Server-side HTTPS client managing Authorization Bearer token injection, correlation tracking (`X-Correlation-Id`), timeout management (8,000ms controller abort), and exponential backoff retry.
@@ -83,7 +103,13 @@ The live verification exercised OpenWay's production integration layer directly:
    - Compound JSON:API document normalizer (`normalizeDevicesResponse`) mapping upstream hardware objects into OpenWay `RingDevice` records.
    - Event normalizer (`normalizeEvent`) extracting `eventId`, `eventType`, `deviceId`, and authoritative timestamps without synthesizing data.
    - History retrieval engine (`getEventHistory` and `getRecentEvents`) querying `/v1/history/devices/{id}/events`.
-3. **`src/ring/errors.ts`**:
+3. **`src/app/api/ring/whep/session/route.ts`**:
+   - Server-side WHEP session controller brokering SDP offer/answer exchange (`POST`) and session teardown (`DELETE`) directly with `api.amazonvision.com`.
+   - Enforces origin validation defending against SSRF on remote session deletion endpoints.
+4. **`src/app/ring/live-view/page.tsx`**:
+   - Temporary local verification view rendering decoded WebRTC live video frames from the official Ring Playground.
+   - Displays real-time WebRTC metrics (ICE state, peer state, decoded frames, resolution) with explicit provenance notice: `Official Ring Developer Playground — Simulated Live View`.
+5. **`src/ring/errors.ts`**:
    - Sanitized structured logger `safeLog()` ensuring sensitive tokens and identifiers are never written to logs or console outputs.
 
 ---
@@ -115,12 +141,16 @@ OpenWay enforces strict boundaries between live telemetry and synthetic simulati
 - [x] Authoritative device status querying returning `online`.
 - [x] Authoritative capability discovery confirming snapshot, clip, video, and motion features.
 - [x] Official event history retrieval querying `/v1/history/devices/{id}/events` returning HTTP 200 OK and valid `history-events` JSON:API payloads.
+- [x] Official WebRTC WHEP live streaming negotiation via `POST /v1/devices/{device_id}/media/streaming/whep/sessions` returning HTTP 201 Created.
+- [x] Actual WebRTC live video playback (`LIVE_VIEW_VERIFIED`): 1280x720 AVC/H.264 @ 30 fps, 470+ real decoded video frames, preserved native Ring watermark.
+- [x] Official WHEP session lifecycle teardown via HTTP DELETE returning HTTP 200 OK with zero lingering sessions.
 - [x] OpenWay JSON:API normalization into strongly typed domain entities (`RingDevice`, `RingEvent`).
-- [x] Clean fail-closed error handling when media download returns HTTP 403.
-- [x] 306 passing automated tests across 37 test files verifying contract adherence.
+- [x] Clean fail-closed error handling when binary snapshot download returns HTTP 403.
+- [x] 311 passing automated tests across 38 test files verifying contract adherence.
 
 ### Unverified / Scope Limitations
-- [ ] **Binary Image Download:** Live media snapshot downloading remains unverified due to Playground token entitlement restrictions.
+- [ ] **Binary Image Download:** Live media snapshot downloading (`/media/image/download`) remains unverified due to Playground token entitlement restrictions (HTTP 403 `missing required timestamp fields`).
+- [ ] **Physical Ramp Scene Binding:** The virtual Playground live video depicts Ring-provided test scenes, not a physical wheelchair ramp; OpenWay preserves strict provenance segregation and does not pipe Playground video into the physical entrance restoration gatekeeper.
 - [ ] **Production Account Linking:** Genuine end-to-end OAuth account-linking against production Ring consumer accounts requires approved Amazon Ring Partner merchant onboarding.
 
 ---
@@ -140,7 +170,7 @@ npm ci
 # 3. Add your short-lived Playground token to .env.local (Git-ignored)
 echo "RING_PLAYGROUND_ACCESS_TOKEN=your_token_here" >> .env.local
 
-# 4. Run automated Ring integration contract tests (306 passing tests)
+# 4. Run automated Ring integration contract tests (311 passing tests)
 npm run test
 
 # 5. Run the production build
@@ -148,3 +178,29 @@ npm run build
 ```
 
 The repository code strictly isolates all tokens: `.env.local` is ignored in `.gitignore`, and tokens are never committed, logged, or exposed in client-side bundles.
+
+---
+
+## 6. Hackathon Demonstration Video Artifacts
+
+OpenWay provides two fully verified 1080p demonstration videos with Amazon Polly Kajal narration and burnt-in English captions:
+
+1. **Revised Video with Official Ring Playground Live View (`openway_hackathon_demo_ring_stream.mp4`):**
+   - **Path:** `openway_hackathon_demo_ring_stream.mp4`
+   - **Duration:** Exactly 170.00 seconds (< 180 seconds deadline constraint)
+   - **Resolution & Encoding:** 1920x1080 @ 30 fps, H.264 / AAC 48 kHz
+   - **SHA-256 Checksum:** `9c55812a08c02c3ac551ea7df344af6aa39b72eef86fb1280695878da96040a3`
+   - **Contents:**
+     - Accessibility problem & physical barrier assurance context.
+     - Authenticated Ring Developer Playground device discovery and capabilities.
+     - **Actual official Ring Playground live WebRTC video playback** with Ring watermark, real decoded frames, and clear provenance label: `Official Ring Developer Playground — Simulated Live View`.
+     - Official Ring event history retrieval.
+     - Full accessibility assurance workbench journey (obstruction injection, staff remediation, nine-point gatekeeper verification, fail-closed UNKNOWN).
+     - Architecture, AWS Bedrock fail-closed safety, and scope limitations disclosure.
+
+2. **Approved Baseline Master Demonstration (`openway_hackathon_demo_approved.mp4`):**
+   - **Path:** `openway_hackathon_demo_approved.mp4`
+   - **Duration:** 170.00 seconds
+   - **SHA-256 Checksum:** `6918455306437dba2675a729f6462e8ca66b6ec44744daf527df259d8cd2ee90`
+   - **Preservation Status:** Unmodified, preserved intact for fallback continuity.
+
