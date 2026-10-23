@@ -22,7 +22,7 @@ graph TD
         UI --> Timeline
         UI --> Controls
         UI --> GatekeeperModal
-        UI -->|Next.js Fetch / Server Actions| API
+        UI -->|"Next.js Fetch / Server Actions"| API
     end
 
     subgraph Server ["OpenWay Domain & Application Server (Next.js / Node.js)"]
@@ -68,10 +68,10 @@ graph TD
     end
 
     subgraph Upstream ["Upstream External Services"]
-        Client -->|Bearer Auth / Server-to-Server| AVA["api.amazonvision.com"]
-        AVA -.->|X-Signature Webhooks v1.1| Webhook
+        Client -->|"Bearer Auth / Server-to-Server"| AVA["api.amazonvision.com"]
+        AVA -.->|"X-Signature Webhooks v1.1"| Webhook
         AVA --> Hardware["Ring Doorbells & Cameras"]
-        BedrockAnalyzer -->|Converse API (amazon.nova-lite-v1:0)| BedrockService["Amazon Bedrock Runtime"]
+        BedrockAnalyzer -->|"Converse API (amazon.nova-lite-v1:0)"| BedrockService["Amazon Bedrock Runtime"]
     end
 ```
 
