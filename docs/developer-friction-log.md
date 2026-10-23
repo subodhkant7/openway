@@ -4,7 +4,7 @@
 > *Authentic engineering reflections, service boundaries, and actionable tooling suggestions encountered while developing OpenWay on Amazon Ring, Amazon Bedrock, Amazon DynamoDB, and AWS Amplify.*
 
 > **Ring Integration Reality:**  
-> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground, including device discovery, status, capabilities, event history and WebRTC live-video playback. Its accessibility-restoration demonstration uses separately labelled simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ---
 
@@ -63,7 +63,7 @@ Every entry distinguishes **application design choices** from **upstream platfor
   {"errors": [{"status": "403", "code": "REQUEST_FORBIDDEN", "detail": "Cannot authorize: missing required timestamp fields in request body"}]}
   ```
 - **Workaround Implemented**:
-  1. Corrected `RingPlaygroundProvider.ts` to query `/v1/history/devices/{device_id}/events` and normalized `attributes.event_type` and `attributes.start` timestamps. Added 3 automated tests in `liveRingContract.test.ts` (306 passing tests across 37 suites).
+  1. Corrected `RingPlaygroundProvider.ts` to query `/v1/history/devices/{device_id}/events` and normalized `attributes.event_type` and `attributes.start` timestamps. Added 3 automated tests in `liveRingContract.test.ts` (316 passing tests across 38 suites).
   2. Preserved explicit token injection without falling back globally.
   3. Factually classified media retrieval outcome as `MEDIA_API_CONNECTED` and `MEDIA_UNAVAILABLE` under sandbox scope boundaries without automatic retries.
   4. Retained the deterministic simulator (`RingSimulatorProvider`) for the public demo to ensure judges can evaluate all 7 accessibility scenarios without requiring Ring hardware or short-lived tokens, while never misrepresenting simulated images as official Ring camera footage.

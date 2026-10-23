@@ -13,7 +13,7 @@
 > **OpenWay is a proactive, event-driven accessibility assurance system that uses Ring evidence to detect configured, camera-observable access interruptions, coordinate staff remediation, and verify physical restoration with fresh evidence.**
 
 > **Ring Integration Reality:**  
-> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground, including device discovery, status, capabilities, event history and WebRTC live-video playback. Its accessibility-restoration demonstration uses separately labelled simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ### The Core Invariant
 > **"Detected is not resolved. Resolved is not verified until fresh evidence proves the physical condition changed."**
@@ -125,16 +125,17 @@ OpenWay maintains strict provenance transparency:
 
 ---
 
-## 7. Revised Video Storyboard (Strictly Under 180s — 2m 48s)
+## 7. Revised Video Storyboard (Strictly Under 180s — 2m 50s / 170s)
+
+> **Public YouTube Video**: [https://www.youtube.com/watch?v=U09w3tJ1-GE](https://www.youtube.com/watch?v=U09w3tJ1-GE)  
+> **Master File**: `openway_hackathon_demo_ring_stream.mp4` (SHA-256: `9c55812a08c02c3ac551ea7df344af6aa39b72eef86fb1280695878da96040a3`)
 
 ```text
-0:00–0:18 | 1. The Accessible-Entrance Problem & Core Invariant (Detection ≠ Resolution ≠ Verification)
-0:18–0:38 | 2. Real Authenticated Ring API Integration (api.amazonvision.com + Bearer auth)
-0:38–0:55 | 3. Official Device Discovery & Event History (Discovered Ring Doorbell + /v1/history/... events)
-0:55–1:12 | 4. Provenance Boundary: Ring Metadata vs. Simulated Accessibility Observations
-1:12–1:35 | 5. Preemptive Obstruction Detection & Staff Remediation Dispatch
-1:35–1:55 | 6. Refusing False Green: Staff Report → RECHECKING (Awaiting Fresh Camera Evidence)
-1:55–2:18 | 7. Canonical Nine-Point Gatekeeper Verification: Fresh Post-Remediation Evidence → VERIFIED RESTORED
-2:18–2:35 | 8. Fail-Closed UNKNOWN: Missing/Stale Evidence Never Shows Green
-2:35–2:48 | Conclusion: Ring + Amazon Bedrock + AWS Amplify & MIT Open-Source Availability
+00:00 — The Accessibility Problem
+00:16 — Official Ring Playground Live Video (WebRTC / WHEP, 1280x720, 30 fps)
+00:35 — Detecting an Entrance Interruption (Preemptive Obstruction)
+00:48 — Staff Remediation and Rechecking (Refusing False Green)
+01:10 — Nine-Point Restoration Gatekeeper (Canonical Fresh Evidence)
+01:35 — Fail-Closed UNKNOWN Verification (Missing/Stale Evidence Defense)
+01:55 — Architecture, AWS Integration and Technical Limitations
 ```

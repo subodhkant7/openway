@@ -3,7 +3,7 @@
 OpenWay is built on a modular, decoupled architecture that separates hardware observation ingestion from accessibility assurance domain rules, evidence evaluation, deterministic state transitions, and cloud persistence.
 
 > **Ring Integration Reality:**  
-> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground, including device discovery, status, capabilities, event history and WebRTC live-video playback. Its accessibility-restoration demonstration uses separately labelled simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ---
 
@@ -144,7 +144,7 @@ OpenWay rigorously decouples its operational stack into three distinct lanes:
 
 ### 7. Ring Integration Layer (`src/ring/`)
 - `RingClient.ts`: Server-side HTTP client with SSRF redirect origin protection (`isValidRingMediaHost`), authoritative capture timestamp extraction (`x-ring-captured-at`, `Last-Modified`), and 416/503 handling. Explicit token injection; no global playground fallback.
-- `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `/v1/history/devices/{device_id}/events`. Verified against official Ring Developer Playground (`https://api.amazonvision.com`) for device discovery, status, capabilities, and event history. (See [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md)).
+- `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `/v1/history/devices/{device_id}/events`. Verified against official Ring Developer Playground (`https://api.amazonvision.com`) for device discovery, status, capabilities, event history, and WebRTC live-video playback. (See [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md)).
 - `RingSimulatorProvider.ts`: Deterministic offline simulator maintaining strict `SIMULATED_LOCAL` provenance separation. Active in the public evaluation console to allow friction-free testing.
 - `accountLinking.ts`: Ring Partner OAuth account-linking scaffolding with AES-256-GCM token encryption at rest and automated refresh abstraction (production partner linking unverified).
 

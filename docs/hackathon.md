@@ -13,7 +13,7 @@
 **Ring Live Integration Evidence**: [docs/ring-live-integration-verification.md](ring-live-integration-verification.md)
 
 > **Ring Integration Reality:**  
-> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground, including device discovery, status, capabilities, event history and WebRTC live-video playback. Its accessibility-restoration demonstration uses separately labelled simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ---
 
@@ -32,7 +32,7 @@ Businesses already deploy Ring cameras and doorbells at front doors, service ram
 
 | Stage 2 Criterion | Weight | OpenWay Phase 8 Implementation |
 | :--- | :---: | :--- |
-| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 9-point restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, authenticated official Ring Developer Playground integration (discovery, status, capabilities, event history), and 306 automated tests across 37 test suites (verified October 2026). |
+| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 9-point restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, authenticated official Ring Developer Playground integration (discovery, status, capabilities, event history, WebRTC live video), and 316 automated tests across 38 test suites (verified October 2026). |
 | **Design** | 25% | WCAG 2.2 AA accessible operator interface, high-contrast dark theme, semantic landmarks, visual assurance cards, dynamic gatekeeper audit modal, and an append-only chronological evidence timeline. |
 | **Potential Impact** | 25% | Solves the daily barrier of blocked ramps and inaccessible doorways for millions of people with mobility disabilities, enabling businesses to maintain physical accessibility and avoid visitor frustration. |
 | **Quality of Idea** | 25% | Novel non-security application of Ring: moving from basic passive motion alerts to an active assurance system where "reported fixed" never equals "verified fixed" without fresh physical proof. |

@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Track: Ring](https://img.shields.io/badge/Hackathon_Track-Ring-0284c7.svg)](https://developer.ring.com)
 [![Mini-Challenge: AWS Builder](https://img.shields.io/badge/Mini--Challenge-AWS_Builder-ff9900.svg)](https://aws.amazon.com)
-[![Tests: 306 passed](https://img.shields.io/badge/Tests-306_passed-success.svg)](src/test)
+[![Tests: 316 passed](https://img.shields.io/badge/Tests-316_passed-success.svg)](src/test)
 [![TypeScript: Strict](https://img.shields.io/badge/TypeScript-Strict-3178c6.svg)](tsconfig.json)
 
 ---
@@ -31,7 +31,7 @@ Today, venues only discover these barriers when a visitor with a mobility disabi
 > **OpenWay is a proactive, event-driven accessibility assurance system that uses Ring evidence to detect configured, camera-observable access interruptions, coordinate staff remediation, and verify physical restoration with fresh evidence.**
 
 > **Ring Integration Reality:**  
-> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground, including device discovery, status, capabilities, event history and WebRTC live-video playback. Its accessibility-restoration demonstration uses separately labelled simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ### The Canonical Invariant
 
@@ -50,7 +50,7 @@ When staff reports an obstruction cleared, OpenWay **refuses to declare the entr
 - **Production Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)
 - **Live Interactive Assurance Console**: [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console)
 - **System Health & Telemetry**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)
-- **Hackathon Video**: Verified release video `openway_hackathon_demo_release.mp4` *(Public streaming link will be embedded upon final submission upload; see [DEMO.md](DEMO.md) for full scene-by-scene script)*
+- **Hackathon Video**: [Watch Demo on YouTube (170s)](https://www.youtube.com/watch?v=U09w3tJ1-GE) *(Official Ring Developer Playground WebRTC live stream & 9-point gatekeeper; see [DEMO.md](DEMO.md) for full scene-by-scene script)*
 - **Judge Quickstart Guide**: [JUDGE.md](JUDGE.md) *(Frictionless 60-second evaluation walkthrough)*
 - **Developer Friction Log**: [docs/developer-friction-log.md](docs/developer-friction-log.md) *(Authentic engineering reflections on Bedrock, Ring, DynamoDB, and Amplify)*
 
@@ -213,7 +213,7 @@ cd openway
 # 2. Install dependencies
 npm ci
 
-# 3. Run the full automated test suite (306 tests across 37 test files)
+# 3. Run the full automated test suite (316 tests across 38 test files)
 npm run test
 
 # 4. Run TypeScript strict typecheck (zero errors)
@@ -274,7 +274,7 @@ The OpenWay test suite provides exhaustive coverage across temporal semantics, s
 
 | Verification Scope | Status | Metric | Verification Target |
 | :--- | :---: | :---: | :--- |
-| **Automated Tests** | **PASS** | **306 / 306** | 306 passing tests across 37 test files (`npm run test`). |
+| **Automated Tests** | **PASS** | **316 / 316** | 316 passing tests across 38 test files (`npm run test`). |
 | **TypeScript** | **PASS** | **Zero errors** | Strict type checking with zero `any` evasions (`tsc --noEmit`). |
 | **Code Quality** | **PASS** | **Zero warnings** | Clean ESLint verification (`next lint`). |
 | **Production Build** | **PASS** | **Standalone** | Next.js App Router optimized production build (`next build`). |

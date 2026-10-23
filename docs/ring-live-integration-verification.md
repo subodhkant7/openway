@@ -146,7 +146,7 @@ OpenWay enforces strict boundaries between live telemetry and synthetic simulati
 - [x] Official WHEP session lifecycle teardown via HTTP DELETE returning HTTP 200 OK with zero lingering sessions.
 - [x] OpenWay JSON:API normalization into strongly typed domain entities (`RingDevice`, `RingEvent`).
 - [x] Clean fail-closed error handling when binary snapshot download returns HTTP 403.
-- [x] 311 passing automated tests across 38 test files verifying contract adherence.
+- [x] 316 passing automated tests across 38 test files verifying contract adherence.
 
 ### Unverified / Scope Limitations
 - [ ] **Binary Image Download:** Live media snapshot downloading (`/media/image/download`) remains unverified due to Playground token entitlement restrictions (HTTP 403 `missing required timestamp fields`).
@@ -170,7 +170,7 @@ npm ci
 # 3. Add your short-lived Playground token to .env.local (Git-ignored)
 echo "RING_PLAYGROUND_ACCESS_TOKEN=your_token_here" >> .env.local
 
-# 4. Run automated Ring integration contract tests (311 passing tests)
+# 4. Run automated Ring integration contract tests (316 passing tests)
 npm run test
 
 # 5. Run the production build

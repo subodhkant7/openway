@@ -9,7 +9,7 @@
 > **Ring Live Integration Evidence**: [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md)
 
 > **Ring Integration Reality:**  
-> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground, including device discovery, status, capabilities, event history and WebRTC live-video playback. Its accessibility-restoration demonstration uses separately labelled simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ---
 
@@ -33,10 +33,10 @@ OpenWay documents its exact integration reality with complete transparency:
 - **Amazon DynamoDB**: Single-table persistence (`OpenWayTable`) handling venues, entrances, assessments, tasks, and audit logs with conditional write locks (`attribute_not_exists(PK)`), optimistic locking, and atomic `TransactWriteItems`.
 - **Pure Deterministic State Machine & Gatekeeper**: All 9 gatekeeper checks and 6 finite states execute live in pure TypeScript with zero external dependencies.
 - **WCAG 2.2 AA Operator Workbench**: Fully interactive console with single-screen assurance cards, dynamic gatekeeper decision modal, and append-only audit timeline.
-- **Reproducible Test Suite**: 306 passing tests across 37 test files (`npm run test`).
+- **Reproducible Test Suite**: 316 passing tests across 38 test files (`npm run test`).
 
 ### Implemented Architecture & Integration Boundaries
-- **Official Ring Developer Playground Integration**: Verified authenticated server-to-server connection to `https://api.amazonvision.com` via `RingClient` and `RingPlaygroundProvider`. Device discovery (`GET /v1/devices`), status (`GET /v1/devices/{id}/status`), capabilities (`GET /v1/devices/{id}/capabilities`), and event history (`GET /v1/history/devices/{id}/events`) are fully operational and verified against a live playground token.
+- **Official Ring Developer Playground Integration**: Verified authenticated server-to-server connection to `https://api.amazonvision.com` via `RingClient` and `RingPlaygroundProvider`. Device discovery (`GET /v1/devices`), status (`GET /v1/devices/{id}/status`), capabilities (`GET /v1/devices/{id}/capabilities`), event history (`GET /v1/history/devices/{id}/events`), and WebRTC live video streaming (`POST .../whep/sessions` returning HTTP 201 Created) are fully operational and verified against a live playground token.
   - *Snapshot Retrieval Status*: Media download (`POST /v1/devices/{id}/media/image/download`) returns HTTP 403 Forbidden under playground token scope boundaries. See [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md) for full sanitized evidence.
   - *Public Demo Configuration*: Runs against `RingSimulatorProvider` (`OPENWAY_PROVIDER=simulator`) so judges can evaluate all 7 scenarios without requiring Ring hardware or developer credentials.
 - **Amazon Bedrock Multimodal Vision**: Complete Converse API integration (`BedrockVisionAnalyzer.ts`) utilizing `amazon.nova-lite-v1:0` with strict Zod tool-use schema parsing.
