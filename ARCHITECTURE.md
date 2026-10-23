@@ -1,6 +1,6 @@
 # OpenWay Architecture
 
-OpenWay is built on a modular, decoupled architecture that separates hardware observation ingestion from accessibility assurance domain rules, evidence evaluation, and deterministic state transitions.
+OpenWay is built on a modular, decoupled architecture that separates hardware observation ingestion from accessibility assurance domain rules, evidence evaluation, deterministic state transitions, and cloud persistence.
 
 ---
 
@@ -13,31 +13,34 @@ graph TD
         Card["Entrance Assurance Card"]
         Timeline["Evidence & Assurance Timeline"]
         Controls["Simulator Workbench (7 Scenarios)"]
+        GatekeeperModal["Nine-Point Gatekeeper Modal"]
         
         UI --> Card
         UI --> Timeline
         UI --> Controls
-        UI -->|Next.js Fetch / Server Routes| API
+        UI --> GatekeeperModal
+        UI -->|Next.js Fetch / Server Actions| API
     end
 
     subgraph Server ["OpenWay Domain & Application Server (Next.js / Node.js)"]
         API["API Layer (/api/entrances, /api/assessments, /api/remediation, /api/ring/*)"]
         
-        subgraph DomainLayer ["Domain Layer (src/domain, src/policy, src/workflow)"]
+        subgraph DomainLayer ["Deterministic Domain Engine (Pure TypeScript)"]
             FSM["Assurance State Machine (FSM)"]
-            Gatekeeper["Restoration Gatekeeper (canDeclareRestored)"]
-            Aggregator["Observation Aggregator (Deterministic)"]
-            Freshness["Freshness Evaluator (Time-based, Non-AI)"]
+            Gatekeeper["Restoration Gatekeeper (9 Invariant Checks)"]
+            Verifier["Post-Remediation Verifier (capturedAt >= completedAt)"]
+            Aggregator["Observation Aggregator (Tri-State)"]
+            Freshness["Freshness Evaluator (Authoritative Capture Time)"]
         end
 
-        subgraph PersistenceLayer ["Persistence Layer (src/persistence)"]
-            RepoInterfaces["Repository Interfaces (Venues, Entrances, Evidence, Assessments, Tasks, Audit)"]
-            Storage["InMemory / SQLite Storage Provider (Transactional Rollback)"]
-            RepoInterfaces --> Storage
+        subgraph CloudPersistence ["Operational AWS Infrastructure"]
+            Dynamo["Amazon DynamoDB (OpenWayTable)"]
+            Amplify["AWS Amplify Hosting (SSR Execution Role)"]
+            Secrets["AWS Secrets Manager (Cached SecretProvider)"]
         end
 
         API --> DomainLayer
-        DomainLayer --> RepoInterfaces
+        DomainLayer --> Dynamo
         
         Webhook["Ring Webhook Engine (HMAC & Deduplication)"]
         ProviderFactory["Ring Provider Factory"]
@@ -45,7 +48,7 @@ graph TD
         Webhook --> DomainLayer
     end
 
-    subgraph ProviderLayer ["Ring Evidence Infrastructure (src/ring)"]
+    subgraph RingLayer ["Ring Integration Layer (src/ring)"]
         ProviderFactory --> IProvider["RingProvider Interface"]
         IProvider --> Playground["RingPlaygroundProvider (Dev Mode)"]
         IProvider --> PartnerAPI["RingApiProvider (Production OAuth)"]
@@ -55,34 +58,41 @@ graph TD
         PartnerAPI --> Client
     end
 
-    subgraph Upstream ["Amazon Ring Infrastructure"]
+    subgraph VisionLayer ["Multimodal Vision Layer (src/vision)"]
+        VisionInterface["VisionAnalyzer Interface"]
+        VisionInterface --> BedrockAnalyzer["BedrockVisionAnalyzer (Converse API)"]
+        VisionInterface --> SimVision["SimulatorVisionAnalyzer (Deterministic Fallback)"]
+    end
+
+    subgraph Upstream ["Upstream External Services"]
         Client -->|Bearer Auth / Server-to-Server| AVA["api.amazonvision.com"]
         AVA -.->|X-Signature Webhooks v1.1| Webhook
         AVA --> Hardware["Ring Doorbells & Cameras"]
+        BedrockAnalyzer -->|Converse API (amazon.nova-lite-v1:0)| BedrockService["Amazon Bedrock Runtime"]
     end
 ```
 
 ---
 
-## Core Architectural Rules
+## Architectural Differentiation: Three Independent Layers
 
-### Rule 1: Ring is Evidence Infrastructure
-The Ring layer supplies raw events, device context, timestamps, and media evidence:
-- Device discovery and status via JSON:API compound documents (`GET /v1/devices?include=status,capabilities`)
-- Motion detection notifications and doorbell button presses via Webhook v1.1
-- Image snapshots via `POST /v1/devices/{id}/media/image/download`
-- Video clips and two-way audio capabilities
+OpenWay rigorously decouples its operational stack into three distinct lanes:
 
-The Ring adapter layer contains **no business rules or accessibility policy logic**.
+### 1. Ingestion & Evidence Layer (`src/ring/`, `src/evidence/`)
+- Supplies raw events, timestamps, device bindings, and image buffers.
+- Contains **zero business rules or accessibility policy logic**.
+- Validates SSRF redirect origins and extracts authoritative capture timestamps (`x-ring-captured-at`, `Last-Modified`).
 
-### Rule 2: AI Does NOT Control State Transitions
-Computer vision analyzers and rule systems generate structured observations with explicit tri-state values (`"TRUE" | "FALSE" | "UNKNOWN"`). AI never outputs `VERIFIED_RESTORED`, and the application never delegates state transitions to model predictions.
+### 2. Deterministic Domain & Policy Engine (`src/domain/`, `src/policy/`, `src/workflow/`)
+- Pure TypeScript implementation with zero cloud SDK dependencies.
+- Enforces the core invariant: **Detection ≠ Resolution ≠ Verification**.
+- Evaluates the **9-Point Deterministic Restoration Gatekeeper** (`canDeclareRestored`).
+- Governs the Assurance State Machine (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`).
 
-### Rule 3: Fresh Evidence is Mandatory for Restoration
-Staff reporting a task complete (`COMPLETED`) moves an entrance to `RECHECKING`. Access is **never** declared restored until fresh post-remediation evidence passes the deterministic gatekeeper.
-
-### Rule 4: UNKNOWN is a Valid and Safe State
-When evidence is missing, stale, contradictory, or unbound, OpenWay transitions to `UNKNOWN`. It never converts uncertainty into a false green "Assured".
+### 3. Cloud Infrastructure & Persistence (`src/persistence/dynamo/`)
+- **AWS Amplify Hosting**: Full-stack Next.js 14 App Router SSR with least-privilege IAM execution roles.
+- **Amazon DynamoDB**: Single-table persistence (`OpenWayTable`) with conditional write locks (`attribute_not_exists(PK)`), optimistic locking, and atomic `TransactWriteItems`.
+- **AWS Secrets Manager**: Server-side credential isolation via `SecretProvider.ts` with 1-hour in-memory caching.
 
 ---
 
@@ -98,11 +108,11 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `temporalClassification.ts`: Explicit temporal classification distinguishing EVENT TIME, CAPTURE TIME, and RECEIPT TIME against task completion timestamp and max age limits.
 - `freshness.ts`: Pure deterministic freshness evaluator based on capture timestamp, evaluation time, max age thresholds, and clock drift tolerance.
 - `aggregation.ts`: Evaluates evidence freshness, camera binding, requirements satisfaction, and contradictory observations.
-- `evidenceAcquisition.ts`: Acquires fresh visual evidence from Ring media download endpoints (`latest_in_range` / `at_timestamp`), preserves camera provenance, extracts authoritative capture timestamps, and classifies temporality.
+- `evidenceAcquisition.ts`: Acquires fresh visual evidence from Ring media download endpoints, preserves camera provenance, extracts authoritative capture timestamps, and classifies temporality.
 
 ### 3. Policy Layer (`src/policy/`)
-- `postRemediationVerifier.ts`: Implements `verifyPostRemediationEvidence(...)` enforcing all 10 mandatory conditions (existence, known capture time, `capturedAt >= completedAt`, entrance match, device match, component match, freshness, schema validity, requirement satisfaction, non-contradiction).
-- `restorationGatekeeper.ts`: Pure deterministic function implementing `canDeclareRestored`. Evaluates restoration eligibility and rejects premature or unverified evidence.
+- `postRemediationVerifier.ts`: Implements `verifyPostRemediationEvidence(...)` enforcing all mandatory verification conditions (existence, known capture time, `capturedAt >= completedAt`, entrance match, device match, component match, freshness, schema validity, requirement satisfaction, non-contradiction).
+- `restorationGatekeeper.ts`: Pure deterministic function implementing `canDeclareRestored`. Evaluates the 9 restoration gatekeeper rules and rejects premature or unverified evidence.
 
 ### 4. Workflow & Orchestration Layer (`src/workflow/`)
 - `accessAssuranceOrchestrator.ts`: Async processing boundary for Ring events. Coordinates event correlation, fresh evidence acquisition, multimodal vision inference, state transitions, and remediation dispatch with deduplication (`provider_eventId_deviceId`).
@@ -112,10 +122,7 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `stateMachine.ts`: Deterministic Assurance State Machine (`AVAILABLE`, `INTERRUPTED`, `ACTION_REQUIRED`, `RECHECKING`, `VERIFIED_RESTORED`, `UNKNOWN`) with invalid transition rejection and structured logging.
 - `simulatorWorkflow.ts`: Exercises the canonical demo flow and deliberate failure demos using the same application services as production code.
 
-### 5. Telemetry Layer (`src/telemetry/`)
-- `metrics.ts`: Centralized in-memory metrics registry tracking `ringEvidenceCalls`, `bedrockCalls`, `dedupeHits`, `recheckAttempts`, `unknownOutcomes`, and `verifiedRestorations`.
-
-### 6. Persistence Layer (`src/persistence/`)
+### 5. Persistence Layer (`src/persistence/`)
 - `repositories.ts`: Clean repository contracts decoupling the domain from storage engines (`VenueRepository`, `EntranceRepository`, `EvidenceRepository`, `ObservationRepository`, `AssessmentRepository`, `RemediationTaskRepository`, `AuditEventRepository`).
 - `dynamo/`: Production Amazon DynamoDB single-table persistence adapter:
   - `DynamoStorageProvider.ts`: Full implementation of `StorageProvider` with atomic `TransactWriteItems` bundling assessments, remediation tasks, and audit events.
@@ -125,17 +132,14 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 - `memoryStore.ts`: In-memory transactional storage provider retained for lightning-fast deterministic unit testing.
 - `bootstrap.ts`: Deterministic, idempotent seeding of the demo venue (`venue_maple_cafe`) and entrance (`entrance_side_accessible`).
 
-### 7. Vision Layer (`src/vision/`)
+### 6. Vision Layer (`src/vision/`)
 - `VisionAnalyzer.ts`: Provider-neutral vision interface (`VisionAnalyzer`, `VisionAnalysisInput`, `DetailedVisionObservation`). Keeps Ring != Vision != Policy.
 - `BedrockVisionAnalyzer.ts`: Implements multimodal analysis using AWS Bedrock Runtime Converse API (`amazon.nova-lite-v1:0`). Enforces platform-level tool calling JSON schemas (`record_accessibility_observation`) and Zod `.strict()` output validation.
 - `SimulatorVisionAnalyzer.ts`: Deterministic simulated vision engine supporting CLEAR, BLOCKED, UNCERTAIN, and CONTRADICTORY scene evaluation.
 - `VisionPipelineService.ts`: Pipeline coordinator implementing deduplication/cost-control idempotency keys, observation persistence, audit emission, and deterministic policy transition dispatch.
-- `schemas.ts`: Strict Zod schema enforcing explicit tri-state enumerations (`"TRUE" | "FALSE" | "UNKNOWN"`) and rejecting extra fields.
-- `prompts.ts`: Narrowly scoped system prompt prohibiting facial recognition, identity profiling, demographic inference, disability assessment, legal compliance claims, and state determination. Builds dynamic user prompt from configured `AccessibilityRequirements`.
-- `errors.ts`: Maps upstream AWS Bedrock exceptions (401, 403, 429, 503, timeout) into typed `VisionAnalysisError` instances.
-- `modelConfig.ts`: Environment-driven configuration (`AWS_REGION`, `BEDROCK_MODEL_ID`, `BEDROCK_GUARDRAIL_ID`, `BEDROCK_GUARDRAIL_VERSION`).
+- **Unavailable Runtime Inference Disclosure**: In evaluation environments where Amazon Bedrock access is unconfigured or rejected with Error 002 (account-level model enablement restriction), OpenWay falls back to `SimulatorVisionAnalyzer.ts` and fails closed to `UNKNOWN` when conclusive evidence is absent.
 
-### 8. Ring Integration Layer (`src/ring/`)
+### 7. Ring Integration Layer (`src/ring/`)
 - `RingClient.ts`: Server-side HTTP client with SSRF redirect origin protection (`isValidRingMediaHost`), authoritative capture timestamp extraction (`x-ring-captured-at`, `Last-Modified`), and 416/503 handling.
 - `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `links.next`.
 - `RingSimulatorProvider.ts`: Deterministic offline simulator maintaining strict `SIMULATED_LOCAL` provenance separation.
@@ -159,3 +163,4 @@ When evidence is missing, stale, contradictory, or unbound, OpenWay transitions 
 | **Process / Container Restart** | State durably persisted in Amazon DynamoDB; survives browser and host reloads. | Persistent Operational Continuity |
 | **Upstream 429 Rate Limit** | Bounded exponential backoff with jitter in `RingClient`. | Operational continuity |
 | **Storage Transaction Failure**| TransactWriteItems rolls back all partial mutations atomically. | Consistent pre-transaction state |
+| **Bedrock Error 002 Denied** | VisionPipeline falls back to simulated vision; fails closed on ambiguity. | `UNKNOWN` |

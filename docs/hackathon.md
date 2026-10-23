@@ -4,10 +4,12 @@
 **Tracks**:
 - **Primary Track**: Ring
 - **Mini-Challenge**: AWS Builder  
-**Phase**: Phase 8 — Final Demo, Submission Hardening, Judge Experience & Amazon Hackathon Package  
+- **Separate Open-Source Contribution**: DeltaCore (Independent contribution by repository author Subodh Kant)  
+**Phase**: Phase 8 — Final Public Release, Submission Hardening & Amazon Hackathon Package  
 **Repository**: [https://github.com/subodhkant7/openway.git](https://github.com/subodhkant7/openway.git)  
 **Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
 **Live Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console)  
+**Developer Friction Log**: [docs/developer-friction-log.md](developer-friction-log.md)
 
 ---
 
@@ -26,8 +28,8 @@ Businesses already deploy Ring cameras and doorbells at front doors, service ram
 
 | Stage 2 Criterion | Weight | OpenWay Phase 8 Implementation |
 | :--- | :---: | :--- |
-| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 10-check restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, and 299 automated tests across 36 test suites (verified October 2026). |
-| **Design** | 25% | WCAG 2.2 AA accessible operator interface, high-contrast dark theme, semantic landmarks, visual assurance cards, and an append-only chronological evidence timeline. |
+| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 9-point restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, and 303 automated tests across 37 test suites (verified October 2026). |
+| **Design** | 25% | WCAG 2.2 AA accessible operator interface, high-contrast dark theme, semantic landmarks, visual assurance cards, dynamic gatekeeper audit modal, and an append-only chronological evidence timeline. |
 | **Potential Impact** | 25% | Solves the daily barrier of blocked ramps and inaccessible doorways for millions of people with mobility disabilities, enabling businesses to maintain physical accessibility and avoid visitor frustration. |
 | **Quality of Idea** | 25% | Novel non-security application of Ring: moving from basic passive motion alerts to an active assurance system where "reported fixed" never equals "verified fixed" without fresh physical proof. |
 
@@ -73,7 +75,7 @@ OpenWay deeply integrates three core AWS cloud services in production:
 
 ## 3. Hackathon Product Feedback
 
-In accordance with official Amazon hackathon submission guidelines, here is our factual evaluation of the developer tools, APIs, and SDKs utilized in OpenWay:
+In accordance with official Amazon hackathon submission guidelines, here is our factual evaluation of the developer tools, APIs, and SDKs utilized in OpenWay (see [docs/developer-friction-log.md](developer-friction-log.md) for full 10-field diagnostic entries):
 
 ### 1. Amazon Ring Partner API & Developer Playground
 - **Developer Tools/APIs/SDKs Used**: Official Ring Partner API (`https://api.amazonvision.com/v1/devices`), Developer Playground token authorization, Webhook v1.1 event subscription (`X-Signature` HMAC-SHA256), media image download (`POST /v1/devices/{id}/media/image/download`), and paginated event history (`GET /v1/devices/{id}/events`).
@@ -96,8 +98,8 @@ In accordance with official Amazon hackathon submission guidelines, here is our 
   - Predictable structured JSON formatting when constrained with schema enforcement instructions.
 - **What Needs Work**:
   - Native JSON Schema enforcement (grammar-based decoding) across all Bedrock foundation models would eliminate occasional markdown code fence wrapping (`json ...`).
-  - Clearer documentation for payload size limits when streaming raw camera buffers.
-- **Onboarding Experience**: Exceptional. The Converse API is one of the best designed LLM/VLM interfaces available, drastically simplifying multimodal prompt engineering.
+  - Account-level invocation restrictions returning generic `ValidationException: Invocation error: [Error 002]` without distinguishing IAM permissions, regional quotas, or model access enablement.
+- **Onboarding Experience**: The Converse API design drastically simplifies multimodal prompt engineering; runtime diagnostics require clearer error reason categorization.
 - **Would You Use It Again**: Absolutely. It is our preferred engine for production vision intelligence.
 
 ### 3. Amazon DynamoDB
@@ -107,7 +109,7 @@ In accordance with official Amazon hackathon submission guidelines, here is our 
   - Single-digit millisecond latency across transactional writes and queries.
   - Seamless TTL support for ephemeral deduplication records.
 - **What Needs Work**:
-  - Local testing requires spinning up DynamoDB Local or writing in-memory mock adapters for unit testing environments.
+  - Rapid state transition workflows require explicit `ConsistentRead: true` to avoid read-after-write replication lag in operator dashboard polling.
 - **Onboarding Experience**: Smooth and predictable. Single-table patterns map cleanly to complex assurance lifecycles.
 - **Would You Use It Again**: Yes, without hesitation. It is the premier choice for mission-critical event-driven state storage.
 
@@ -118,7 +120,7 @@ In accordance with official Amazon hackathon submission guidelines, here is our 
   - Built-in HTTPS endpoints with custom domain support and environment variable injection.
   - Native IAM execution role allows server actions and route handlers to access DynamoDB and Bedrock without hardcoded AWS access keys.
 - **What Needs Work**:
-  - Build logs can occasionally be delayed during high-concurrency preview runs.
+  - IAM service role trust relationships for Secrets Manager access during SSR bootstrap require explicit configuration.
 - **Onboarding Experience**: Fast and frictionless. Took under 10 minutes from git repository to live public deployment.
 - **Would You Use It Again**: Yes. For full-stack Next.js applications on AWS, Amplify Hosting is outstanding.
 
@@ -128,31 +130,26 @@ In accordance with official Amazon hackathon submission guidelines, here is our 
 
 These genuine feature requests would directly benefit accessibility assurance and event-driven automation systems built on Ring and AWS:
 
-### 1. [CRITICAL] Authoritative Capture Timestamp in Media Headers & Playground Coverage
-- **Request**: Standardize an authoritative `x-ring-captured-at` ISO-8601 header on all HTTP 200 and 303 responses from `/v1/devices/{id}/media/image/download`, and support an optional request parameter `min_captured_at=<ISO-8601>`.
-- **Why It Matters to OpenWay**: OpenWay's fundamental invariant is that an entrance cannot be verified without evidence captured *after* remediation. When Ring returns a buffered frame captured 3 minutes prior, OpenWay must reject it as stale. An explicit timestamp header and timestamp filter would eliminate redundant polling and guarantee fresh post-remediation evidence.
-
-### 2. [IMPORTANT] Clearer Media Capture & Redirect Semantics in Partner Documentation
-- **Request**: Explicitly document the HTTP 303 redirect flow to S3 pre-signed URLs, including guidelines on stripping Authorization headers on redirect to prevent S3 400 errors, and document typical pre-signed URL expiration windows.
-- **Why It Matters to OpenWay**: Standard HTTP clients that forward Bearer tokens on 303 redirects receive S3 authentication errors. Clarifying this in the official Ring documentation saves developers hours of debugging.
-
-### 3. [IMPORTANT] Explicit Accessibility-Oriented Simulator Scenarios in Developer Playground
-- **Request**: Add structured accessibility test fixtures into the Developer Playground (e.g. simulated ramp obstruction events, clear doorway frames, camera occlusion events).
-- **Why It Matters to OpenWay**: Currently developers must hand-craft synthetic frames or connect physical hardware to test non-security event flows. Official accessibility scenario presets would encourage more developers to build inclusive smart venue solutions.
-
-### 4. [NICE TO HAVE] Multi-Sensor Component Correlation in Webhook Envelopes
-- **Request**: Include the specific camera sensor ID or component identifier (e.g. `ground_package_camera` vs `entry_wide_camera`) in webhook payload attributes for multi-lens Ring hardware.
-- **Why It Matters to OpenWay**: Allows venues with dual-camera doorbells to bind accessibility verification strictly to the ground-facing ramp sensor without disambiguation queries.
+1. **[CRITICAL] Authoritative Capture Timestamp in Media Headers & Playground Coverage**:
+   Standardize an authoritative `x-ring-captured-at` ISO-8601 header on all HTTP 200 and 303 responses from `/v1/devices/{id}/media/image/download`, and support an optional request parameter `min_captured_at=<ISO-8601>` to eliminate stale frame polling.
+2. **[IMPORTANT] Clearer Media Capture & Redirect Semantics in Partner Documentation**:
+   Explicitly document the HTTP 303 redirect flow to S3 pre-signed URLs, including guidelines on stripping Authorization headers on redirect to prevent S3 400 errors.
+3. **[IMPORTANT] Explicit Accessibility-Oriented Simulator Scenarios in Developer Playground**:
+   Add structured accessibility test fixtures into the Developer Playground (e.g. simulated ramp obstruction events, clear doorway frames, camera occlusion events).
+4. **[NICE TO HAVE] Multi-Sensor Component Correlation in Webhook Envelopes**:
+   Include the specific camera sensor ID or component identifier in webhook payload attributes for multi-lens Ring hardware.
 
 ---
 
-## 5. Evaluation of Optional Open Source Mini-Challenge
+## 5. Track Alignment & Separate Open-Source Contribution
 
-In evaluating the optional **Open Source mini-challenge**, we reviewed the official hackathon rules:
-- The challenge requires a **new additional open-source project or contribution to an existing public repository during the hackathon window**, alongside the primary submission.
-- The rules explicitly clarify that the primary submission itself does not automatically qualify as satisfying this separate requirement.
+### Primary Track & Mini-Challenge
+- **Primary Track**: **Ring** — Transforming Ring video doorbells and cameras into proactive, event-driven physical accessibility assurance sentinels.
+- **Mini-Challenge**: **AWS Builder** — Full-stack deployment integrating AWS Amplify Hosting (SSR), Amazon DynamoDB (single-table cloud storage with atomic locks), and Amazon Bedrock (multimodal vision analysis).
 
-**Decision**: We evaluated extracting OpenWay's deterministic `RestorationGatekeeper` into a standalone npm package (`@openway/evidence-gatekeeper`). However, to avoid fragmenting development focus or compromising the quality, documentation, and rock-solid stability of our primary **Ring track** submission and **AWS Builder** challenge, we made the conscious engineering decision to **concentrate 100% of our effort on perfecting the core OpenWay application**. The entire OpenWay codebase is fully open source under the MIT License, but we do not claim the separate Open Source mini-challenge.
+### Distinction from Separate DeltaCore Open-Source Contribution
+- Repository author **Subodh Kant** maintains **DeltaCore** as an independent open-source contribution developed separately from OpenWay.
+- **OpenWay** itself is an independent, complete project licensed under the open-source **MIT License** ([LICENSE](LICENSE)). OpenWay is submitted to the **Ring Track** and **AWS Builder Mini-Challenge**, and does not rely on or claim the separate DeltaCore open-source contribution for its core track qualification.
 
 ---
 
@@ -163,35 +160,31 @@ In evaluating the optional **Open Source mini-challenge**, we reviewed the offic
 | **1** | **Ring genuinely used in code** | Server-side `RingClient`, `RingPlaygroundProvider`, `RingApiProvider`, and `RingWebhookHandler` interfacing with official Amazon Ring Partner API endpoints. | **PASSED** |
 | **2** | **Real runtime integration path** | Server-to-server HTTP client issues live requests to `https://api.amazonvision.com` with OAuth Bearer tokens, correlation IDs, and HMAC-SHA256 signature verification. | **PASSED** |
 | **3** | **Demo shows simulator or actual device** | Complete deterministic local simulator (`RingSimulatorProvider`) and Developer Playground provider supporting live Ring devices. | **PASSED** |
-| **4** | **No fake README-only integration** | 299 automated tests verifying live endpoint calls, token validation, rate limit handling, HMAC signature verification, state machine transitions, and gatekeeper invariants. | **PASSED** |
+| **4** | **No fake README-only integration** | 303 automated tests verifying live endpoint calls, token validation, rate limit handling, HMAC signature verification, state machine transitions, and gatekeeper invariants. | **PASSED** |
 | **5** | **Server-side only API calls & credentials** | Ring and AWS credentials exist strictly in server-side Next.js route handlers; zero browser leakage verified via bundle audits. | **PASSED** |
 | **6** | **Locally testable** | Deterministic mock provider runs seamlessly with `npm run dev` and `npm run test` without requiring live Ring credentials. | **PASSED** |
 | **7** | **Clear setup & run instructions** | Documented step-by-step in `README.md`, `JUDGE.md`, `DEMO.md`, and `docs/deployment.md`. | **PASSED** |
 | **8** | **Preserve existing MIT license** | Original MIT License by Subodh Kant preserved verbatim in [LICENSE](LICENSE). | **PASSED** |
 | **9** | **Playground first, real account later** | Structured provider interface supports Playground token mode now and OAuth 2.0 Partner API scaffolding seamlessly. | **PASSED** |
 | **10** | **No overreaching legal claims** | OpenWay explicitly limits scope to camera-observable physical conditions (ramps, doorways, pathways) configured by the venue. | **PASSED** |
-| **11** | **Developer Tooling Friction Log** | 5 authentic entries strictly adhering to the 7-field schema in `docs/friction-log.md`. | **PASSED** |
+| **11** | **Developer Tooling Friction Log** | 4 authentic entries strictly adhering to the 10-field schema in `docs/developer-friction-log.md`. | **PASSED** |
 
 ---
 
 ## 7. Privacy-First Engineering
 
-OpenWay is built on an unwavering privacy principle:
-
-> **OpenWay analyzes the physical environment, not people's identities.**
-
 - **Zero Face Recognition**: No facial detection, landmarking, or embeddings.
 - **Zero Identity Recognition**: No personal tracking or identity association.
 - **Zero Disability Inference**: Never infers or logs medical conditions or disability status.
 - **Zero Cross-Camera Tracking**: Each entrance is monitored within its isolated spatial scope.
-- **Ephemeral Media Storage**: Raw camera images are processed strictly in server memory buffers and dropped immediately after inference.
+- **Ephemeral Media Storage**: Raw camera images are processed strictly in volatile server memory buffers and dropped immediately after inference.
 
 ---
 
 ## 8. Final Engineering & Quality Metrics
 
-- **299 Automated Tests across 36 Suites**: 100% green test suite covering temporal semantics, DynamoDB single-table schema, optimistic concurrency, deployed demo contract, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation (verified October 2026).
+- **303 Automated Tests across 37 Suites**: 100% green test suite covering temporal semantics, DynamoDB single-table schema, optimistic concurrency, deployed demo contract, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation (verified October 2026).
 - **Strict TypeScript**: 100% typechecked with strict null checks (`npm run typecheck` exits with 0).
 - **ESLint & Web Vitals**: Zero lint errors or warnings (`npm run lint` exits with 0).
 - **Production Build**: Next.js App Router optimized static and dynamic bundle compilation (`npm run build` exits with 0).
-- **Zero Secret Leakage**: Verified via automated secret scanner; 0 tokens, AWS keys, or pre-signed URLs exposed to client bundles.
+- **Zero Secret Leakage**: Verified via automated secret scanner; 0 tokens, AWS keys, or pre-signed URLs exposed in git history or client bundles.
