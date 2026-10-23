@@ -6,6 +6,7 @@ frontend:
         - npm install --legacy-peer-deps
     build:
       commands:
+        - export GIT_COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "27911e0")
         - npm run typecheck
         - npm run lint
         - OPENWAY_STORAGE=memory OPENWAY_ENV=test npm run test

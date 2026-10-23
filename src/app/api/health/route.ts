@@ -6,7 +6,7 @@ export async function GET() {
   const timestamp = new Date().toISOString();
   const environment = process.env.OPENWAY_ENV || process.env.NODE_ENV || "development";
   const version = process.env.OPENWAY_VERSION || "0.1.0";
-  const commitSha = process.env.GIT_COMMIT_SHA || "7d751b9";
+  const commitSha = process.env.GIT_COMMIT_SHA || "27911e0";
 
   const storageProvider = process.env.OPENWAY_STORAGE === "dynamo" ? "dynamo" : "memory";
 

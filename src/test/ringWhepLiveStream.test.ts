@@ -154,4 +154,84 @@ describe("Ring WHEP Live Stream Controller (Phase R3)", () => {
       );
     });
   });
+
+  describe("Phase D Security Gate — Production Fail-Closed Isolation", () => {
+    it("POST /api/ring/whep/session returns 403 PRODUCTION_WHEP_DISABLED in production", async () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.RING_PLAYGROUND_ACCESS_TOKEN = "valid_test_token";
+
+      const req = new NextRequest("http://localhost:3000/api/ring/whep/session", {
+        method: "POST",
+        body: JSON.stringify({ sdpOffer: "v=0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n" }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.code).toBe("PRODUCTION_WHEP_DISABLED");
+      expect(json.success).toBe(false);
+    });
+
+    it("DELETE /api/ring/whep/session returns 403 PRODUCTION_WHEP_DISABLED in production", async () => {
+      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+      process.env.RING_PLAYGROUND_ACCESS_TOKEN = "valid_test_token";
+
+      const req = new NextRequest("http://localhost:3000/api/ring/whep/session", {
+        method: "DELETE",
+        body: JSON.stringify({ sessionUrl: "https://api.amazonvision.com/v1/sessions/whep_123" }),
+      });
+
+      const res = await DELETE(req);
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.code).toBe("PRODUCTION_WHEP_DISABLED");
+      expect(json.success).toBe(false);
+    });
+
+    it("rejects SDP offers without m=video lines with 400 INVALID_REQUEST", async () => {
+      process.env.RING_PLAYGROUND_ACCESS_TOKEN = "valid_test_token";
+
+      const req = new NextRequest("http://localhost:3000/api/ring/whep/session", {
+        method: "POST",
+        body: JSON.stringify({ sdpOffer: "v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n" }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("INVALID_REQUEST");
+    });
+
+    it("rejects malicious or invalid deviceId with 400 INVALID_DEVICE_ID", async () => {
+      process.env.RING_PLAYGROUND_ACCESS_TOKEN = "valid_test_token";
+
+      const req = new NextRequest("http://localhost:3000/api/ring/whep/session", {
+        method: "POST",
+        body: JSON.stringify({
+          deviceId: "dev_123; rm -rf /",
+          sdpOffer: "v=0\r\nm=video 9 UDP/TLS/RTP/SAVPF 96\r\n",
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(400);
+      const json = await res.json();
+      expect(json.code).toBe("INVALID_DEVICE_ID");
+    });
+
+    it("POST /api/ring/whep/clip returns 403 PRODUCTION_CLIP_DISABLED in production", async () => {
+      const { POST: POST_CLIP } = await import("@/app/api/ring/whep/clip/route");
+      (process.env as Record<string, string | undefined>).NODE_ENV = "production";
+
+      const req = new NextRequest("http://localhost:3000/api/ring/whep/clip", {
+        method: "POST",
+        body: new Uint8Array([1, 2, 3, 4]),
+      });
+
+      const res = await POST_CLIP(req);
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json.code).toBe("PRODUCTION_CLIP_DISABLED");
+    });
+  });
 });

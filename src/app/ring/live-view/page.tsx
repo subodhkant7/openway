@@ -176,6 +176,11 @@ export default function RingLiveViewPage() {
 
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+        if (errData.code === "PRODUCTION_WHEP_DISABLED") {
+          throw new Error(
+            "Production Security Notice: Ring WHEP live streaming is disabled fail-closed on public deployments to protect developer credentials. Live WebRTC stream playback was verified in authorized local environments (Phase R3)."
+          );
+        }
         throw new Error(
           errData.error || `Ring WHEP endpoint returned HTTP ${response.status}`
         );

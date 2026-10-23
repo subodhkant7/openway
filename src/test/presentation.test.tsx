@@ -73,9 +73,9 @@ describe("OpenWay Product Presentation Homepage (/)", () => {
     expect(screen.getByText("4. Canonical Verification")).toBeDefined();
     expect(screen.getByText("5. Fail-Closed Failsafe")).toBeDefined();
 
-    // Verified test suite metrics (299 tests across 36 suites)
-    expect(screen.getByText("299")).toBeDefined();
-    expect(screen.getByText("Across 36 test suites (verified October 2026)")).toBeDefined();
+    // Verified test suite metrics (311 tests across 38 suites)
+    expect(screen.getByText("311")).toBeDefined();
+    expect(screen.getByText("Across 38 test suites (verified October 2026)")).toBeDefined();
 
     // Verification date
     expect(screen.getByText(`Verified: ${PLATFORM_STATUS.simulatorWorkflow.checkedAt}`)).toBeDefined();

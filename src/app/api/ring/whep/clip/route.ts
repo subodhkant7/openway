@@ -6,9 +6,33 @@ import os from "os";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    process.env.OPENWAY_ENV === "production" ||
+    process.env.AWS_EXECUTION_ENV !== undefined ||
+    process.env.AMPLIFY_ENV !== undefined;
+
+  if (isProduction) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Clip upload endpoint is disabled in production environments.",
+        code: "PRODUCTION_CLIP_DISABLED",
+      },
+      { status: 403 }
+    );
+  }
+
   try {
     const arrayBuffer = await request.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
+
+    if (buffer.length > 25 * 1024 * 1024) {
+      return NextResponse.json(
+        { success: false, error: "Clip exceeds 25MB limit" },
+        { status: 400 }
+      );
+    }
 
     const outDir = process.env.WHEP_CLIP_OUTPUT_DIR || os.tmpdir();
     const outPath = path.join(outDir, "ring_playground_whep_stream_clip.webm");

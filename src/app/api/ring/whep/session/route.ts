@@ -15,9 +15,38 @@ export const dynamic = "force-dynamic";
  * - Enforces strict server-to-server TLS transport.
  * - Defends against SSRF on session termination URLs.
  */
+/**
+ * Security Gate:
+ * In production environments, live Ring WHEP session creation and teardown
+ * are disabled fail-closed unless explicitly enabled via ENABLE_PRODUCTION_WHEP="true".
+ * This prevents unauthorized anonymous consumption of Ring API tokens/quotas.
+ */
+function isProductionWhepDisabled(): boolean {
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    process.env.OPENWAY_ENV === "production" ||
+    process.env.AWS_EXECUTION_ENV !== undefined ||
+    process.env.AMPLIFY_ENV !== undefined;
+
+  const allowProductionWhep = process.env.ENABLE_PRODUCTION_WHEP === "true";
+  return isProduction && !allowProductionWhep;
+}
+
 export async function POST(request: NextRequest) {
   const correlationId = crypto.randomUUID();
   try {
+    if (isProductionWhepDisabled()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Ring WHEP live streaming is restricted to local verification environments. Production WHEP endpoints are disabled fail-closed to prevent unauthorized credential consumption.",
+          code: "PRODUCTION_WHEP_DISABLED",
+        },
+        { status: 403 }
+      );
+    }
+
     const token =
       process.env.RING_PLAYGROUND_ACCESS_TOKEN ||
       process.env.RING_ACCESS_TOKEN;
@@ -37,12 +66,33 @@ export async function POST(request: NextRequest) {
     const { sdpOffer } = body;
     let { deviceId } = body;
 
-    if (!sdpOffer || typeof sdpOffer !== "string") {
+    if (
+      !sdpOffer ||
+      typeof sdpOffer !== "string" ||
+      sdpOffer.length > 65536 ||
+      !sdpOffer.includes("m=video")
+    ) {
       return NextResponse.json(
         {
           success: false,
-          error: "sdpOffer string is required in request body.",
+          error: "sdpOffer must be a valid WebRTC SDP string under 64KB with a video m-line.",
           code: "INVALID_REQUEST",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (
+      deviceId &&
+      (typeof deviceId !== "string" ||
+        deviceId.length > 256 ||
+        !/^[a-zA-Z0-9._-]+$/.test(deviceId))
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "deviceId contains invalid characters.",
+          code: "INVALID_DEVICE_ID",
         },
         { status: 400 }
       );
@@ -140,6 +190,18 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const correlationId = crypto.randomUUID();
   try {
+    if (isProductionWhepDisabled()) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Ring WHEP session teardown is disabled fail-closed in production environments.",
+          code: "PRODUCTION_WHEP_DISABLED",
+        },
+        { status: 403 }
+      );
+    }
+
     const token =
       process.env.RING_PLAYGROUND_ACCESS_TOKEN ||
       process.env.RING_ACCESS_TOKEN;

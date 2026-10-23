@@ -18,6 +18,11 @@ const STATUS_BADGES: Record<VerificationStatus, { label: string; chip: string; d
     chip: "border-slate-700 bg-slate-900/60 text-slate-300",
     dot: "bg-slate-400",
   },
+  VERIFIED: {
+    label: "PLAYGROUND API VERIFIED",
+    chip: "border-sky-500/30 bg-sky-950/60 text-sky-300",
+    dot: "bg-sky-400",
+  },
 };
 
 export function SafetyPrivacySection() {
