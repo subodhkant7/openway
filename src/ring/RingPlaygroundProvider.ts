@@ -170,8 +170,8 @@ export class RingPlaygroundProvider implements RingProvider {
     let currentEndpoint =
       options.nextUrl ||
       (options.deviceId
-        ? `/v1/devices/${encodeURIComponent(options.deviceId)}/events?limit=${limit}`
-        : `/v1/events?limit=${limit}`);
+        ? `/v1/history/devices/${encodeURIComponent(options.deviceId)}/events?limit=${limit}`
+        : `/v1/history/events?limit=${limit}`);
 
     let pagesFetched = 0;
     let nextLink: string | undefined = undefined;
@@ -267,13 +267,13 @@ export class RingPlaygroundProvider implements RingProvider {
       resource.id || raw.id || raw.event_id || `ev_${Date.now()}`
     );
     const eventType = String(
-      resource.type || attributes.event_type || attributes.type || raw.type || raw.event_type || "motion"
+      attributes.event_type || attributes.type || resource.type || raw.type || raw.event_type || "motion"
     );
     const deviceId = String(
       attributes.source || attributes.device_id || raw.device_id || raw.deviceId || "unknown_device"
     );
     const timestamp = String(
-      attributes.timestamp || raw.timestamp || raw.created_at || new Date().toISOString()
+      attributes.timestamp || attributes.start || raw.timestamp || raw.created_at || new Date().toISOString()
     );
 
     return {

@@ -3,6 +3,9 @@
 > **Amazon Developer Hackathon Submission Documentation**  
 > *Authentic engineering reflections, service boundaries, and actionable tooling suggestions encountered while developing OpenWay on Amazon Ring, Amazon Bedrock, Amazon DynamoDB, and AWS Amplify.*
 
+> **Ring Integration Reality:**  
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+
 ---
 
 ## Executive Overview
@@ -36,22 +39,36 @@ Every entry distinguishes **application design choices** from **upstream platfor
 
 ---
 
-## Friction Entry 2: Ring One-Way Account Linking & Device Testing Boundaries
+## Friction Entry 2: Ring Partner API Event History Route Discrepancy & Media Scope Boundaries
 
-- **Service / Tool**: Amazon Ring Partner API (OAuth 2.0 PKCE & One-Way Account Linking v1.1)
-- **Severity**: Medium
-- **Task Attempted**: Complete end-to-end partner account linking and device discovery against production Ring accounts and physical Ring Wired Doorbell hardware.
+- **Service / Tool**: Amazon Ring Partner API & Developer Playground (`https://api.amazonvision.com`, JSON:API v1.1)
+- **Severity**: Medium (Impairs live camera snapshot retrieval in developer sandbox)
+- **Task Attempted**: Perform authenticated device discovery, status, capabilities, event history, and media snapshot retrieval against official Ring Partner API endpoints using a Ring Developer Playground access token.
 - **Steps Performed**:
-  1. Implemented server-side Ring Partner API v1.1 client supporting JSON:API `/v1/devices` and media endpoints.
-  2. Implemented OAuth 2.0 authorization exchange flow with PKCE, state nonce verification, and AES-256-GCM token encryption.
-  3. Attempted linking a production Ring user account via One-Way AppStore flow.
-- **Expected Result**: Seamless device discovery and real-time webhook subscriptions for live production hardware.
-- **Actual Result**: Production Ring Partner API account linking requires official Amazon Ring Partner onboarding approval, merchant vetting, and AppStore partner publishing, which are restricted for independent hackathon evaluation environments.
+  1. Injected an authorized Ring Developer Playground Bearer token into server-side `RingClient`.
+  2. Executed device discovery `GET /v1/devices` and retrieved device status (`/status`) and capabilities (`/capabilities`).
+  3. Attempted querying device event history via `GET /v1/devices/{device_id}/events`.
+  4. Cross-referenced documentation and corrected the endpoint route to `GET /v1/history/devices/{device_id}/events`.
+  5. Formatted standards-compliant snapshot download requests (`POST /v1/devices/{device_id}/media/image/download`) testing both flat JSON and JSON:API resource bodies.
+- **Expected Result**: HTTP 200 OK across device metadata and event history, and HTTP 303 redirect or download link for media snapshots.
+- **Actual Result**:
+  - `GET /v1/devices`, `/status`, and `/capabilities` returned HTTP 200 OK with valid JSON:API compound documents.
+  - `GET /v1/devices/{device_id}/events` returned HTTP 403 Forbidden; however, `GET /v1/history/devices/{device_id}/events` succeeded with HTTP 200 OK, returning valid `history-events` collections.
+  - Media image download returned HTTP 403 Forbidden from Ring's Envoy gateway (`REQUEST_FORBIDDEN: detail: "Cannot authorize: missing required timestamp fields in request body"` on JSON:API body; `invalid request body` on flat body).
 - **Observed Error or Diagnostic Evidence**:
-  Unapproved partner client IDs cannot complete OAuth token exchange against `oauth.ring.com`, and physical Ring hardware cannot be paired outside the authorized partner organization scope.
-- **Workaround Implemented**: Built a spec-verified `RingSimulatorProvider` matching the exact JSON:API schema, compound relationships, and HMAC `X-Signature` webhook contracts of the official Ring Partner API v1.1 specification. The UI transparently discloses `Ring: SIMULATOR (Deterministic)` and `Account Association: Not Connected (NOT_LINKED)`.
-- **Impact on Development**: Required writing extensive mock hardware fixtures and 303 contract tests to verify spec compliance without access to live partner credentials.
-- **Actionable Improvement Suggestion**: Provide a public developer sandbox tier with pre-provisioned virtual Ring camera devices that can emit live mock Webhooks and stream sample video feeds without requiring enterprise partner onboarding.
+  ```text
+  GET /v1/devices/device-uuid/events -> HTTP 403 Forbidden
+  GET /v1/history/devices/device-uuid/events -> HTTP 200 OK (type: "history-events")
+  POST /v1/devices/device-uuid/media/image/download -> HTTP 403 Forbidden
+  {"errors": [{"status": "403", "code": "REQUEST_FORBIDDEN", "detail": "Cannot authorize: missing required timestamp fields in request body"}]}
+  ```
+- **Workaround Implemented**:
+  1. Corrected `RingPlaygroundProvider.ts` to query `/v1/history/devices/{device_id}/events` and normalized `attributes.event_type` and `attributes.start` timestamps. Added 3 automated tests in `liveRingContract.test.ts` (306 passing tests across 37 suites).
+  2. Preserved explicit token injection without falling back globally.
+  3. Factually classified media retrieval outcome as `MEDIA_API_CONNECTED` and `MEDIA_UNAVAILABLE` under sandbox scope boundaries without automatic retries.
+  4. Retained the deterministic simulator (`RingSimulatorProvider`) for the public demo to ensure judges can evaluate all 7 accessibility scenarios without requiring Ring hardware or short-lived tokens, while never misrepresenting simulated images as official Ring camera footage.
+- **Impact on Development**: Required iterative diagnostic testing against `api.amazonvision.com` and comprehensive documentation in [docs/ring-live-integration-verification.md](ring-live-integration-verification.md) to maintain total transparency about what is live vs. what is simulated.
+- **Actionable Improvement Suggestion**: Provide formal OpenAPI / JSON Schema documentation for the `media/image/download` request body detailing all required timestamp fields, align event history path documentation, and grant media download entitlements to Developer Playground sandbox tokens.
 
 ---
 
@@ -106,6 +123,6 @@ Every entry distinguishes **application design choices** from **upstream platfor
 | Entry | Service | Category | Impact | Resolution |
 | :---: | :--- | :--- | :--- | :--- |
 | **01** | Amazon Bedrock Nova | Platform Authorization / Availability | Blocked live inference in public demo | Fallback analyzer with explicit UI status transparency |
-| **02** | Amazon Ring Partner API | Partner Onboarding Constraint | Blocked live hardware pairing in sandbox | Spec-verified simulator fixture matching official schema |
+| **02** | Amazon Ring Partner API | Route Discrepancy & Sandbox Media Entitlements | Event history route mismatch & media 403 in playground | Updated route to `/v1/history/devices/...`, verified metadata, and retained deterministic simulator fallback |
 | **03** | Amazon DynamoDB | Storage Replication Latency | Temporary UI state regression flicker | Enforced `ConsistentRead: true` + monotonic client gating |
 | **04** | AWS Amplify & Secrets Manager | Cloud IAM Orchestration Complexity | Runtime AccessDenied during SSR bootstrap | Least-privilege role scoping + cached SecretProvider |

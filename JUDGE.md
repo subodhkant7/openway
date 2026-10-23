@@ -5,7 +5,11 @@
 > **Production Website**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
 > **Live Interactive Console**: [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console)  
 > **System Health & Telemetry**: [https://main.d2qhyx9vstga35.amplifyapp.com/api/health](https://main.d2qhyx9vstga35.amplifyapp.com/api/health)  
-> **Developer Friction Log**: [docs/developer-friction-log.md](docs/developer-friction-log.md)
+> **Developer Friction Log**: [docs/developer-friction-log.md](docs/developer-friction-log.md)  
+> **Ring Live Integration Evidence**: [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md)
+
+> **Ring Integration Reality:**  
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ---
 
@@ -29,11 +33,12 @@ OpenWay documents its exact integration reality with complete transparency:
 - **Amazon DynamoDB**: Single-table persistence (`OpenWayTable`) handling venues, entrances, assessments, tasks, and audit logs with conditional write locks (`attribute_not_exists(PK)`), optimistic locking, and atomic `TransactWriteItems`.
 - **Pure Deterministic State Machine & Gatekeeper**: All 9 gatekeeper checks and 6 finite states execute live in pure TypeScript with zero external dependencies.
 - **WCAG 2.2 AA Operator Workbench**: Fully interactive console with single-screen assurance cards, dynamic gatekeeper decision modal, and append-only audit timeline.
-- **Reproducible Test Suite**: 303 passing tests across 37 test files (`npm run test`).
+- **Reproducible Test Suite**: 306 passing tests across 37 test files (`npm run test`).
 
-### Implemented Architecture (Spec-Verified / Sandboxed)
-- **Ring Partner API v1.1 Integration**: Complete server-side `RingClient`, JSON:API `/v1/devices` parsing, HTTP 303 media download redirects with SSRF protection, HMAC-SHA256 signature verification, and OAuth 2.0 PKCE account-linking with AES-256-GCM token encryption.
-  - *Current Status in Public Demo*: Runs against `RingSimulatorProvider` (`OPENWAY_PROVIDER=simulator`) to allow frictionless evaluation without requiring judges to possess approved Amazon Ring Partner merchant credentials or pair physical doorbells.
+### Implemented Architecture & Integration Boundaries
+- **Official Ring Developer Playground Integration**: Verified authenticated server-to-server connection to `https://api.amazonvision.com` via `RingClient` and `RingPlaygroundProvider`. Device discovery (`GET /v1/devices`), status (`GET /v1/devices/{id}/status`), capabilities (`GET /v1/devices/{id}/capabilities`), and event history (`GET /v1/history/devices/{id}/events`) are fully operational and verified against a live playground token.
+  - *Snapshot Retrieval Status*: Media download (`POST /v1/devices/{id}/media/image/download`) returns HTTP 403 Forbidden under playground token scope boundaries. See [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md) for full sanitized evidence.
+  - *Public Demo Configuration*: Runs against `RingSimulatorProvider` (`OPENWAY_PROVIDER=simulator`) so judges can evaluate all 7 scenarios without requiring Ring hardware or developer credentials.
 - **Amazon Bedrock Multimodal Vision**: Complete Converse API integration (`BedrockVisionAnalyzer.ts`) utilizing `amazon.nova-lite-v1:0` with strict Zod tool-use schema parsing.
   - *Current Status in Public Demo*: In the public Amplify deployment where Bedrock model invocation is rejected with upstream Error 002 (account-level model access restriction), OpenWay operates in simulated vision fallback (`SimulatorVisionAnalyzer.ts`) and fails closed to `UNKNOWN` when conclusive evidence is absent.
 
@@ -67,10 +72,11 @@ npm run test
 
 ### Verified Test Metrics (October 2026)
 - **Test Files**: 37 passed (37)
-- **Tests**: 303 passed (303)
-- **Duration**: ~11.5s
+- **Tests**: 306 passed (306)
+- **Duration**: ~7.7s
 - **Suites Covered**:
   - `restorationGatekeeper.test.ts` (12 tests): Invariant verification, stale evidence rejection, temporal ordering.
+  - `liveRingContract.test.ts` (11 tests): Official Ring Partner API history endpoint `/v1/history/devices/{id}/events`, JSON:API normalization, empty collection and 401/403 error safety.
   - `ringClient.test.ts` (10 tests): HTTP 303 redirect handling, SSRF origin validation, capture timestamp extraction.
   - `ringOneWayAccountLinking.test.ts` (23 tests): OAuth 2.0 PKCE, state nonces, AES-256-GCM token encryption.
   - `dynamoPersistence.test.ts` (6 tests): Single-table operations, optimistic locking, conditional write idempotency.

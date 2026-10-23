@@ -9,7 +9,11 @@
 **Repository**: [https://github.com/subodhkant7/openway.git](https://github.com/subodhkant7/openway.git)  
 **Presentation Website**: [https://main.d2qhyx9vstga35.amplifyapp.com](https://main.d2qhyx9vstga35.amplifyapp.com)  
 **Live Public Demo**: [https://main.d2qhyx9vstga35.amplifyapp.com/console](https://main.d2qhyx9vstga35.amplifyapp.com/console)  
-**Developer Friction Log**: [docs/developer-friction-log.md](developer-friction-log.md)
+**Developer Friction Log**: [docs/developer-friction-log.md](developer-friction-log.md)  
+**Ring Live Integration Evidence**: [docs/ring-live-integration-verification.md](ring-live-integration-verification.md)
+
+> **Ring Integration Reality:**  
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
 
 ---
 
@@ -28,7 +32,7 @@ Businesses already deploy Ring cameras and doorbells at front doors, service ram
 
 | Stage 2 Criterion | Weight | OpenWay Phase 8 Implementation |
 | :--- | :---: | :--- |
-| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 9-point restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, and 303 automated tests across 37 test suites (verified October 2026). |
+| **Tech Implementation** | 25% | Single-table DynamoDB cloud persistence with conditional writes, optimistic locking, pure 9-point restoration gatekeeper, server-side Bedrock Converse API multimodal analysis, authenticated official Ring Developer Playground integration (discovery, status, capabilities, event history), and 306 automated tests across 37 test suites (verified October 2026). |
 | **Design** | 25% | WCAG 2.2 AA accessible operator interface, high-contrast dark theme, semantic landmarks, visual assurance cards, dynamic gatekeeper audit modal, and an append-only chronological evidence timeline. |
 | **Potential Impact** | 25% | Solves the daily barrier of blocked ramps and inaccessible doorways for millions of people with mobility disabilities, enabling businesses to maintain physical accessibility and avoid visitor frustration. |
 | **Quality of Idea** | 25% | Novel non-security application of Ring: moving from basic passive motion alerts to an active assurance system where "reported fixed" never equals "verified fixed" without fresh physical proof. |
@@ -78,16 +82,18 @@ OpenWay deeply integrates three core AWS cloud services in production:
 In accordance with official Amazon hackathon submission guidelines, here is our factual evaluation of the developer tools, APIs, and SDKs utilized in OpenWay (see [docs/developer-friction-log.md](developer-friction-log.md) for full 10-field diagnostic entries):
 
 ### 1. Amazon Ring Partner API & Developer Playground
-- **Developer Tools/APIs/SDKs Used**: Official Ring Partner API (`https://api.amazonvision.com/v1/devices`), Developer Playground token authorization, Webhook v1.1 event subscription (`X-Signature` HMAC-SHA256), media image download (`POST /v1/devices/{id}/media/image/download`), and paginated event history (`GET /v1/devices/{id}/events`).
+- **Developer Tools/APIs/SDKs Used**: Official Ring Partner API (`https://api.amazonvision.com`), Developer Playground token authorization, device discovery (`/v1/devices`), status (`/v1/devices/{id}/status`), capabilities (`/v1/devices/{id}/capabilities`), event history (`/v1/history/devices/{id}/events`), media image download diagnostic (`POST /v1/devices/{id}/media/image/download`), and Webhook v1.1 event subscription (`X-Signature` HMAC-SHA256).
 - **What Worked**:
   - The JSON:API specification provides a standardized resource model across diverse camera hardware.
+  - Authenticated server-to-server calls to `api.amazonvision.com` succeed with playground bearer tokens for device listing, status, capabilities, and event history (`/v1/history/devices/{id}/events`).
   - HMAC-SHA256 signed webhooks allow reliable real-time event delivery without polling.
   - The Developer Playground provides quick generation of test tokens for early sandbox validation.
 - **What Needs Work**:
+  - Event history endpoint path discrepancy: initial calls to `/v1/devices/{id}/events` returned HTTP 403, whereas the documented `/v1/history/devices/{id}/events` returned HTTP 200 with standard `history-events` JSON:API records.
+  - Media image download (`POST /v1/devices/{id}/media/image/download`) returns HTTP 403 Forbidden (`REQUEST_FORBIDDEN: missing required timestamp fields in request body`) on sandbox tokens, indicating complex body schema requirements and/or partner-level media entitlements.
   - Compound document parsing requires client-side graph stitching across `included` resources before device capabilities and status can be resolved.
-  - Media image download returns HTTP 303 redirects to pre-signed S3 URLs, but documentation does not clearly detail redirect handling, authorization header stripping, or capture metadata headers (`x-ring-captured-at`).
   - Webhook signature headers vary between Playground mock dispatchers (`sha256=<hex>`) and production specification (raw hex).
-- **Onboarding Experience**: Straightforward for authentication and device listing; required extra reverse-engineering for media download redirects and compound relationship parsing.
+- **Onboarding Experience**: Straightforward for authentication, device listing, and history retrieval; required extra diagnostic investigation for media endpoints and compound relationship parsing.
 - **Would You Use It Again**: Yes. The official API surface is robust, stable, and uniquely suited for camera-driven assurance applications.
 
 ### 2. Amazon Bedrock
@@ -160,7 +166,7 @@ These genuine feature requests would directly benefit accessibility assurance an
 | **1** | **Ring genuinely used in code** | Server-side `RingClient`, `RingPlaygroundProvider`, `RingApiProvider`, and `RingWebhookHandler` interfacing with official Amazon Ring Partner API endpoints. | **PASSED** |
 | **2** | **Real runtime integration path** | Server-to-server HTTP client issues live requests to `https://api.amazonvision.com` with OAuth Bearer tokens, correlation IDs, and HMAC-SHA256 signature verification. | **PASSED** |
 | **3** | **Demo shows simulator or actual device** | Complete deterministic local simulator (`RingSimulatorProvider`) and Developer Playground provider supporting live Ring devices. | **PASSED** |
-| **4** | **No fake README-only integration** | 303 automated tests verifying live endpoint calls, token validation, rate limit handling, HMAC signature verification, state machine transitions, and gatekeeper invariants. | **PASSED** |
+| **4** | **No fake README-only integration** | 306 automated tests verifying live endpoint calls, token validation, rate limit handling, HMAC signature verification, state machine transitions, and gatekeeper invariants. | **PASSED** |
 | **5** | **Server-side only API calls & credentials** | Ring and AWS credentials exist strictly in server-side Next.js route handlers; zero browser leakage verified via bundle audits. | **PASSED** |
 | **6** | **Locally testable** | Deterministic mock provider runs seamlessly with `npm run dev` and `npm run test` without requiring live Ring credentials. | **PASSED** |
 | **7** | **Clear setup & run instructions** | Documented step-by-step in `README.md`, `JUDGE.md`, `DEMO.md`, and `docs/deployment.md`. | **PASSED** |
@@ -183,7 +189,7 @@ These genuine feature requests would directly benefit accessibility assurance an
 
 ## 8. Final Engineering & Quality Metrics
 
-- **303 Automated Tests across 37 Suites**: 100% green test suite covering temporal semantics, DynamoDB single-table schema, optimistic concurrency, deployed demo contract, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation (verified October 2026).
+- **306 Automated Tests across 37 Suites**: 100% green test suite covering temporal semantics, DynamoDB single-table schema, optimistic concurrency, deployed demo contract, SSRF defenses, multi-camera bindings, semantic prompt injection, Bedrock Converse API parsing, finite state machine transitions, event correlation, and event reconciliation (verified October 2026).
 - **Strict TypeScript**: 100% typechecked with strict null checks (`npm run typecheck` exits with 0).
 - **ESLint & Web Vitals**: Zero lint errors or warnings (`npm run lint` exits with 0).
 - **Production Build**: Next.js App Router optimized static and dynamic bundle compilation (`npm run build` exits with 0).

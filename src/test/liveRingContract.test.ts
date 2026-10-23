@@ -178,5 +178,91 @@ describe("Live Ring API Contract & Evidence Semantics (Phase 5)", () => {
       expect(paginated.events.map((e) => e.eventId)).toEqual(["event_1", "event_2", "event_3"]);
       expect(paginated.hasMore).toBe(false);
     });
+
+    it("queries /v1/history/devices/{id}/events for device-specific event history and normalizes history-events", async () => {
+      const client = new RingClient({ accessToken: "test_token" });
+      const provider = new RingPlaygroundProvider(client);
+
+      const historyResponse = {
+        data: [
+          {
+            id: "hist_evt_101",
+            type: "history-events",
+            attributes: {
+              event_type: "on_demand",
+              start: "2026-10-23T11:15:00Z",
+              end: "2026-10-23T11:15:30Z",
+              is_third_party_reviewed: false,
+              device_id: "dev_ramp_cam",
+            },
+          },
+        ],
+      };
+
+      let requestedUrl = "";
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        requestedUrl = url;
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-type": "application/vnd.api+json" }),
+          json: async () => historyResponse,
+        });
+      });
+
+      const events = await provider.getRecentEvents("dev_ramp_cam", 5);
+
+      expect(requestedUrl).toContain("/v1/history/devices/dev_ramp_cam/events?limit=5");
+      expect(events.length).toBe(1);
+      const ev = events[0];
+      expect(ev.eventId).toBe("hist_evt_101");
+      expect(ev.eventType).toBe("on_demand"); // correctly extracted from attributes.event_type rather than generic type!
+      expect(ev.timestamp).toBe("2026-10-23T11:15:00Z"); // correctly extracted from attributes.start
+      expect(ev.provider).toBe("ring_playground");
+      expect(ev.eventCategory).toBe("official_ring");
+      expect(ev.source).toBe("ring_playground_api");
+    });
+
+    it("handles empty event history collections gracefully", async () => {
+      const client = new RingClient({ accessToken: "test_token" });
+      const provider = new RingPlaygroundProvider(client);
+
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        headers: new Headers({ "content-type": "application/vnd.api+json" }),
+        json: async () => ({ data: [] }),
+      });
+
+      const events = await provider.getRecentEvents("dev_empty", 5);
+      expect(events).toEqual([]);
+    });
+
+    it("handles 401 and 403 error responses gracefully without throwing or crashing", async () => {
+      const client = new RingClient({ accessToken: "test_token" });
+      const provider = new RingPlaygroundProvider(client);
+
+      // Test 403 Forbidden
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        headers: new Headers({ "content-type": "application/json" }),
+        text: async () => JSON.stringify({ errors: [{ status: "403", detail: "Insufficient permissions" }] }),
+      });
+
+      const events403 = await provider.getRecentEvents("dev_forbidden", 5);
+      expect(events403).toEqual([]);
+
+      // Test 401 Unauthorized
+      global.fetch = vi.fn().mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers({ "content-type": "application/json" }),
+        text: async () => JSON.stringify({ errors: [{ status: "401", detail: "Unauthorized" }] }),
+      });
+
+      const events401 = await provider.getRecentEvents("dev_unauthorized", 5);
+      expect(events401).toEqual([]);
+    });
   });
 });

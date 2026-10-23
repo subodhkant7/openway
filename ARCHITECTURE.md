@@ -2,6 +2,9 @@
 
 OpenWay is built on a modular, decoupled architecture that separates hardware observation ingestion from accessibility assurance domain rules, evidence evaluation, deterministic state transitions, and cloud persistence.
 
+> **Ring Integration Reality:**  
+> **OpenWay has verified authenticated integration with the official Ring Developer Playground for device discovery, status, capabilities and event history. Its public accessibility assurance demonstration continues to use deterministic simulated visual evidence. Official Ring snapshot retrieval and production account-linking remain unverified.**
+
 ---
 
 ## High-Level Architecture Diagram
@@ -140,10 +143,10 @@ OpenWay rigorously decouples its operational stack into three distinct lanes:
 - **Unavailable Runtime Inference Disclosure**: In evaluation environments where Amazon Bedrock access is unconfigured or rejected with Error 002 (account-level model enablement restriction), OpenWay falls back to `SimulatorVisionAnalyzer.ts` and fails closed to `UNKNOWN` when conclusive evidence is absent.
 
 ### 7. Ring Integration Layer (`src/ring/`)
-- `RingClient.ts`: Server-side HTTP client with SSRF redirect origin protection (`isValidRingMediaHost`), authoritative capture timestamp extraction (`x-ring-captured-at`, `Last-Modified`), and 416/503 handling.
-- `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `links.next`.
-- `RingSimulatorProvider.ts`: Deterministic offline simulator maintaining strict `SIMULATED_LOCAL` provenance separation.
-- `accountLinking.ts`: Ring Partner OAuth account-linking scaffolding with AES-256-GCM token encryption at rest and automated refresh abstraction.
+- `RingClient.ts`: Server-side HTTP client with SSRF redirect origin protection (`isValidRingMediaHost`), authoritative capture timestamp extraction (`x-ring-captured-at`, `Last-Modified`), and 416/503 handling. Explicit token injection; no global playground fallback.
+- `RingPlaygroundProvider.ts`: Live Playground client with JSON:API compound document parsing and paginated event history following `/v1/history/devices/{device_id}/events`. Verified against official Ring Developer Playground (`https://api.amazonvision.com`) for device discovery, status, capabilities, and event history. (See [docs/ring-live-integration-verification.md](docs/ring-live-integration-verification.md)).
+- `RingSimulatorProvider.ts`: Deterministic offline simulator maintaining strict `SIMULATED_LOCAL` provenance separation. Active in the public evaluation console to allow friction-free testing.
+- `accountLinking.ts`: Ring Partner OAuth account-linking scaffolding with AES-256-GCM token encryption at rest and automated refresh abstraction (production partner linking unverified).
 
 ---
 
@@ -157,6 +160,7 @@ OpenWay rigorously decouples its operational stack into three distinct lanes:
 | **Pre-Remediation Evidence Reuse** | `verifyPostRemediationEvidence` requires `capturedAt >= completedAt`. | `UNKNOWN` |
 | **Missing Capture Timestamp** | Temporal classifier marks evidence `TEMPORALLY_UNVERIFIED`. | `UNKNOWN` |
 | **Media 404 / 416 / Timeout** | Client catches upstream media absence and surfaces typed error. | `UNKNOWN` |
+| **Ring Media 403 / Scope Boundary** | Catches upstream 403 without retrying; surfaces `MEDIA_UNAVAILABLE` and falls back to deterministic simulator. | Deterministic Fallback / `UNKNOWN` |
 | **Arbitrary Redirect SSRF** | `isValidRingMediaHost` rejects non-Ring/non-AWS redirect targets. | Download Aborted / Rejected |
 | **Concurrent Webhook Ingestion** | Durable DynamoDB conditional write locks (`attribute_not_exists(PK)`). | Duplicate Swallowed / Processed Once |
 | **Concurrent State Mutation** | Optimistic locking on assessment versioning with exponential backoff retry. | Clean State Reconciliation |
